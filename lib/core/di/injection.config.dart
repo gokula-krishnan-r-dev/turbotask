@@ -18,6 +18,7 @@ import 'package:turbotask/core/auth/auth_manager.dart' as _i293;
 import 'package:turbotask/core/auth/secure_storage_service.dart' as _i484;
 import 'package:turbotask/core/di/injection.dart' as _i208;
 import 'package:turbotask/core/network/api_service.dart' as _i79;
+import 'package:turbotask/core/services/focus_mode_service.dart' as _i336;
 import 'package:turbotask/features/auth/data/datasources/auth_remote_datasource.dart'
     as _i577;
 import 'package:turbotask/features/auth/data/repositories/auth_repository_impl.dart'
@@ -52,22 +53,52 @@ import 'package:turbotask/features/projects/domain/usecases/get_user_projects_us
     as _i69;
 import 'package:turbotask/features/projects/presentation/bloc/projects_bloc.dart'
     as _i217;
-import 'package:turbotask/features/todos/data/datasources/todo_remote_datasource.dart'
-    as _i95;
-import 'package:turbotask/features/todos/data/repositories/todo_repository_impl.dart'
-    as _i410;
-import 'package:turbotask/features/todos/domain/repositories/todo_repository.dart'
-    as _i954;
+import 'package:turbotask/features/todos/data/datasources/kanban_remote_datasource.dart'
+    as _i341;
+import 'package:turbotask/features/todos/data/datasources/note_remote_datasource.dart'
+    as _i1022;
+import 'package:turbotask/features/todos/data/datasources/subtask_remote_datasource.dart'
+    as _i283;
+import 'package:turbotask/features/todos/data/repositories/kanban_repository_impl.dart'
+    as _i500;
+import 'package:turbotask/features/todos/data/repositories/note_repository_impl.dart'
+    as _i972;
+import 'package:turbotask/features/todos/data/repositories/subtask_repository_impl.dart'
+    as _i517;
+import 'package:turbotask/features/todos/domain/repositories/kanban_repository.dart'
+    as _i204;
+import 'package:turbotask/features/todos/domain/repositories/note_repository.dart'
+    as _i351;
+import 'package:turbotask/features/todos/domain/repositories/subtask_repository.dart'
+    as _i592;
+import 'package:turbotask/features/todos/domain/usecases/create_kanban_todo_usecase.dart'
+    as _i68;
+import 'package:turbotask/features/todos/domain/usecases/create_note_usecase.dart'
+    as _i535;
 import 'package:turbotask/features/todos/domain/usecases/create_subtask_usecase.dart'
     as _i929;
-import 'package:turbotask/features/todos/domain/usecases/create_todo_usecase.dart'
-    as _i355;
-import 'package:turbotask/features/todos/domain/usecases/get_project_todos_usecase.dart'
-    as _i1037;
-import 'package:turbotask/features/todos/domain/usecases/update_todo_status_usecase.dart'
-    as _i464;
-import 'package:turbotask/features/todos/presentation/bloc/todos_bloc.dart'
-    as _i297;
+import 'package:turbotask/features/todos/domain/usecases/delete_note_usecase.dart'
+    as _i613;
+import 'package:turbotask/features/todos/domain/usecases/delete_subtask_usecase.dart'
+    as _i579;
+import 'package:turbotask/features/todos/domain/usecases/get_kanban_board_usecase.dart'
+    as _i722;
+import 'package:turbotask/features/todos/domain/usecases/get_notes_usecase.dart'
+    as _i28;
+import 'package:turbotask/features/todos/domain/usecases/get_subtasks_usecase.dart'
+    as _i85;
+import 'package:turbotask/features/todos/domain/usecases/move_todo_usecase.dart'
+    as _i827;
+import 'package:turbotask/features/todos/domain/usecases/update_note_usecase.dart'
+    as _i602;
+import 'package:turbotask/features/todos/domain/usecases/update_subtask_usecase.dart'
+    as _i58;
+import 'package:turbotask/features/todos/presentation/bloc/kanban_board_bloc.dart'
+    as _i585;
+import 'package:turbotask/features/todos/presentation/bloc/note_bloc.dart'
+    as _i623;
+import 'package:turbotask/features/todos/presentation/bloc/subtask_bloc.dart'
+    as _i432;
 
 extension GetItInjectableX on _i174.GetIt {
   // initializes the registration of main-scope dependencies inside of GetIt
@@ -78,6 +109,7 @@ extension GetItInjectableX on _i174.GetIt {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final registerModule = _$RegisterModule();
     gh.singleton<_i361.Dio>(() => registerModule.dio);
+    gh.singleton<_i336.FocusModeService>(() => _i336.FocusModeService());
     gh.singleton<_i484.SecureStorageService>(
       () => _i484.SecureStorageService(gh<_i460.SharedPreferences>()),
     );
@@ -96,29 +128,26 @@ extension GetItInjectableX on _i174.GetIt {
     gh.singleton<_i1028.AuthBloc>(
       () => _i1028.AuthBloc(gh<_i293.AuthManager>()),
     );
-    gh.singleton<_i95.TodoRemoteDataSource>(
-      () => _i95.TodoRemoteDataSourceImpl(gh<_i79.ApiService>()),
+    gh.factory<_i341.KanbanRemoteDataSource>(
+      () => _i341.KanbanRemoteDataSourceImpl(gh<_i79.ApiService>()),
+    );
+    gh.factory<_i283.SubtaskRemoteDataSource>(
+      () => _i283.SubtaskRemoteDataSourceImpl(gh<_i79.ApiService>()),
+    );
+    gh.factory<_i204.KanbanRepository>(
+      () => _i500.KanbanRepositoryImpl(gh<_i341.KanbanRemoteDataSource>()),
+    );
+    gh.factory<_i1022.NoteRemoteDataSource>(
+      () => _i1022.NoteRemoteDataSourceImpl(gh<_i79.ApiService>()),
     );
     gh.singleton<_i247.ProjectRemoteDataSource>(
       () => _i247.ProjectRemoteDataSourceImpl(gh<_i79.ApiService>()),
     );
-    gh.singleton<_i954.TodoRepository>(
-      () => _i410.TodoRepositoryImpl(gh<_i95.TodoRemoteDataSource>()),
-    );
-    gh.factory<_i464.UpdateTodoStatusUseCase>(
-      () => _i464.UpdateTodoStatusUseCase(gh<_i954.TodoRepository>()),
-    );
-    gh.factory<_i929.CreateSubtaskUseCase>(
-      () => _i929.CreateSubtaskUseCase(gh<_i954.TodoRepository>()),
-    );
-    gh.factory<_i355.CreateTodoUseCase>(
-      () => _i355.CreateTodoUseCase(gh<_i954.TodoRepository>()),
-    );
-    gh.factory<_i1037.GetProjectTodosUseCase>(
-      () => _i1037.GetProjectTodosUseCase(gh<_i954.TodoRepository>()),
-    );
     gh.singleton<_i577.AuthRemoteDataSource>(
       () => _i577.AuthRemoteDataSourceImpl(gh<_i79.ApiService>()),
+    );
+    gh.lazySingleton<_i592.SubtaskRepository>(
+      () => _i517.SubtaskRepositoryImpl(gh<_i283.SubtaskRemoteDataSource>()),
     );
     gh.singleton<_i766.AuthRepository>(
       () => _i544.AuthRepositoryImpl(
@@ -145,17 +174,58 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i460.VerifyOtpUseCase>(
       () => _i460.VerifyOtpUseCase(gh<_i766.AuthRepository>()),
     );
-    gh.factory<_i297.TodosBloc>(
-      () => _i297.TodosBloc(
-        gh<_i1037.GetProjectTodosUseCase>(),
-        gh<_i355.CreateTodoUseCase>(),
-        gh<_i929.CreateSubtaskUseCase>(),
-        gh<_i464.UpdateTodoStatusUseCase>(),
-        gh<_i954.TodoRepository>(),
-      ),
+    gh.lazySingleton<_i351.NoteRepository>(
+      () => _i972.NoteRepositoryImpl(gh<_i1022.NoteRemoteDataSource>()),
+    );
+    gh.factory<_i929.CreateSubtaskUseCase>(
+      () => _i929.CreateSubtaskUseCase(gh<_i592.SubtaskRepository>()),
+    );
+    gh.factory<_i58.UpdateSubtaskUseCase>(
+      () => _i58.UpdateSubtaskUseCase(gh<_i592.SubtaskRepository>()),
+    );
+    gh.factory<_i579.DeleteSubtaskUseCase>(
+      () => _i579.DeleteSubtaskUseCase(gh<_i592.SubtaskRepository>()),
+    );
+    gh.factory<_i85.GetSubtasksUseCase>(
+      () => _i85.GetSubtasksUseCase(gh<_i592.SubtaskRepository>()),
     );
     gh.factory<_i216.LoginBloc>(
       () => _i216.LoginBloc(gh<_i86.InitiateOtpUseCase>()),
+    );
+    gh.factory<_i722.GetKanbanBoardUseCase>(
+      () => _i722.GetKanbanBoardUseCase(gh<_i204.KanbanRepository>()),
+    );
+    gh.factory<_i68.CreateKanbanTodoUseCase>(
+      () => _i68.CreateKanbanTodoUseCase(gh<_i204.KanbanRepository>()),
+    );
+    gh.factory<_i827.MoveTodoUseCase>(
+      () => _i827.MoveTodoUseCase(gh<_i204.KanbanRepository>()),
+    );
+    gh.factory<_i827.ReorderTodosUseCase>(
+      () => _i827.ReorderTodosUseCase(gh<_i204.KanbanRepository>()),
+    );
+    gh.factory<_i827.BulkMoveTodosUseCase>(
+      () => _i827.BulkMoveTodosUseCase(gh<_i204.KanbanRepository>()),
+    );
+    gh.factory<_i585.KanbanBoardBloc>(
+      () => _i585.KanbanBoardBloc(
+        gh<_i722.GetKanbanBoardUseCase>(),
+        gh<_i68.CreateKanbanTodoUseCase>(),
+        gh<_i827.MoveTodoUseCase>(),
+        gh<_i827.ReorderTodosUseCase>(),
+      ),
+    );
+    gh.factory<_i535.CreateNoteUseCase>(
+      () => _i535.CreateNoteUseCase(gh<_i351.NoteRepository>()),
+    );
+    gh.factory<_i613.DeleteNoteUseCase>(
+      () => _i613.DeleteNoteUseCase(gh<_i351.NoteRepository>()),
+    );
+    gh.factory<_i602.UpdateNoteUseCase>(
+      () => _i602.UpdateNoteUseCase(gh<_i351.NoteRepository>()),
+    );
+    gh.factory<_i28.GetNotesUseCase>(
+      () => _i28.GetNotesUseCase(gh<_i351.NoteRepository>()),
     );
     gh.factory<_i967.GetProjectStatsUseCase>(
       () => _i967.GetProjectStatsUseCase(gh<_i680.ProjectRepository>()),
@@ -165,6 +235,14 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i245.CreateProjectUseCase>(
       () => _i245.CreateProjectUseCase(gh<_i680.ProjectRepository>()),
+    );
+    gh.factory<_i432.SubtaskBloc>(
+      () => _i432.SubtaskBloc(
+        gh<_i85.GetSubtasksUseCase>(),
+        gh<_i929.CreateSubtaskUseCase>(),
+        gh<_i58.UpdateSubtaskUseCase>(),
+        gh<_i579.DeleteSubtaskUseCase>(),
+      ),
     );
     gh.factory<_i352.OtpBloc>(
       () => _i352.OtpBloc(
@@ -177,6 +255,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i69.GetUserProjectsUseCase>(),
         gh<_i245.CreateProjectUseCase>(),
         gh<_i967.GetProjectStatsUseCase>(),
+      ),
+    );
+    gh.factory<_i623.NoteBloc>(
+      () => _i623.NoteBloc(
+        gh<_i28.GetNotesUseCase>(),
+        gh<_i535.CreateNoteUseCase>(),
+        gh<_i602.UpdateNoteUseCase>(),
+        gh<_i613.DeleteNoteUseCase>(),
       ),
     );
     return this;

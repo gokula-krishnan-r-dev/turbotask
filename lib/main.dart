@@ -1,6 +1,11 @@
+import 'dart:io';
+import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:turbotask/features/todos/presentation/bloc/kanban_board_bloc.dart';
+import 'package:turbotask/features/todos/presentation/bloc/note_bloc.dart';
 
 import 'core/auth/auth_bloc.dart';
 import 'core/auth/auth_state.dart';
@@ -12,9 +17,9 @@ import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/pages/otp_verification_page.dart';
 import 'features/projects/presentation/pages/projects_home_page.dart';
 import 'features/projects/presentation/bloc/projects_bloc.dart';
-import 'features/projects/domain/entities/project.dart';
-import 'features/todos/presentation/pages/project_detail_page.dart';
-import 'features/todos/presentation/bloc/todos_bloc.dart';
+import 'features/floating_panel/presentation/pages/floating_panel_page.dart';
+import 'features/floating_panel/presentation/pages/floating_panel_settings_page.dart';
+
 import 'features/auth/presentation/widgets/logo_widget.dart';
 
 /// Main entry point of the TurboTask application.
@@ -53,7 +58,8 @@ class TurboTaskApp extends StatelessWidget {
       providers: [
         BlocProvider(create: (context) => getIt<AuthBloc>()),
         BlocProvider(create: (context) => getIt<ProjectsBloc>()),
-        BlocProvider(create: (context) => getIt<TodosBloc>()),
+        BlocProvider(create: (context) => getIt<NoteBloc>()),
+        BlocProvider(create: (context) => getIt<KanbanBoardBloc>()),
       ],
       child: AnimatedBuilder(
         animation: getIt<ThemeManager>(),
@@ -63,13 +69,21 @@ class TurboTaskApp extends StatelessWidget {
           return MaterialApp(
             title: 'TurboTask',
             debugShowCheckedModeBanner: false,
+            // Localization delegates
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+              AppFlowyEditorLocalizations.delegate,
+            ],
+            supportedLocales: const [Locale('en', '')],
 
             // Theme configuration
             theme: AppThemes.lightTheme,
             darkTheme: AppThemes.darkTheme,
             themeMode: themeManager.themeMode,
 
-            // Initial route
+            // Initial route - use floating panel for macOS if authenticated
             home: const SplashPage(),
 
             // Route configuration
@@ -77,6 +91,9 @@ class TurboTaskApp extends StatelessWidget {
               '/login': (context) => const LoginPage(),
               '/home': (context) => const ProjectsHomePage(),
               '/projects': (context) => const ProjectsHomePage(),
+              '/floating-panel': (context) => const FloatingPanelPage(),
+              '/floating-panel-settings': (context) =>
+                  const FloatingPanelSettingsPage(),
             },
 
             // Handle parameterized routes
@@ -87,14 +104,6 @@ class TurboTaskApp extends StatelessWidget {
                   return MaterialPageRoute(
                     builder: (context) => OtpVerificationPage(email: email),
                   );
-                case '/project-detail':
-                  final project = settings.arguments as Project?;
-                  if (project != null) {
-                    return MaterialPageRoute(
-                      builder: (context) => ProjectDetailPage(project: project),
-                    );
-                  }
-                  return null;
                 default:
                   return null;
               }
@@ -283,6 +292,117 @@ class HomePage extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Splash page for macOS floating panel
+class FloatingPanelSplashPage extends StatefulWidget {
+  const FloatingPanelSplashPage({super.key});
+
+  @override
+  State<FloatingPanelSplashPage> createState() =>
+      _FloatingPanelSplashPageState();
+}
+
+class _FloatingPanelSplashPageState extends State<FloatingPanelSplashPage> {
+  bool _hasNavigated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    print('FloatingPanelSplashPage initState');
+
+    // Add a timeout fallback in case auth state doesn't emit
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted && !_hasNavigated) {
+        _navigateToFloatingPanel();
+      }
+    });
+  }
+
+  void _handleAuthState(AuthState state) {
+    if (_hasNavigated) return;
+
+    // Add a small delay for splash screen effect
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted && !_hasNavigated) {
+        _hasNavigated = true;
+
+        if (state.isAuthenticated) {
+          Navigator.of(context).pushReplacementNamed('/floating-panel');
+        } else {
+          _navigateToLogin();
+        }
+      }
+    });
+  }
+
+  void _navigateToLogin() {
+    if (mounted && !_hasNavigated) {
+      _hasNavigated = true;
+      Navigator.of(context).pushReplacementNamed('/login');
+    }
+  }
+
+  void _navigateToFloatingPanel() {
+    if (mounted && !_hasNavigated) {
+      _hasNavigated = true;
+      Navigator.of(context).pushReplacementNamed('/floating-panel');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return BlocConsumer<AuthBloc, AuthState>(
+      listener: (context, state) {
+        _handleAuthState(state);
+      },
+      builder: (context, state) {
+        // Also check initial state
+        if (!_hasNavigated && !state.isInitial && !state.isLoading) {
+          // Trigger navigation for initial non-loading states
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _handleAuthState(state);
+          });
+        }
+
+        return Scaffold(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Use animated logo for splash screen
+                const AnimatedLogoWidget(size: 80, iconSize: 40),
+                const SizedBox(height: 16),
+
+                const Text(
+                  'TurboTask Panel',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                ),
+
+                const SizedBox(height: 8),
+
+                Text(
+                  'Your tasks, always at hand.',
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                ),
+
+                const SizedBox(height: 32),
+
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

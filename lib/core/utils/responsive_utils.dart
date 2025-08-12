@@ -299,4 +299,15 @@ class ResponsiveUtils {
       return 16;
     }
   }
+
+  /// Get kanban column width for project detail page
+  static double getColumnWidth(BuildContext context) {
+    if (isMobile(context)) {
+      return getScreenWidth(context) * 0.85; // 85% of screen width on mobile
+    } else if (isTablet(context)) {
+      return 320;
+    } else {
+      return 350;
+    }
+  }
 }

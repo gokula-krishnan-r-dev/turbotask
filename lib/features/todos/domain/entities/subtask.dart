@@ -1,54 +1,48 @@
 import 'package:equatable/equatable.dart';
 import 'todo.dart';
 
-/// Subtask entity representing a sub-task within a todo.
-/// This is the core domain model for subtask data.
+/// Subtask entity representing a sub-item of a todo
 class Subtask extends Equatable {
   const Subtask({
     required this.id,
     required this.todoId,
     required this.name,
-    required this.description,
-    required this.status,
-    required this.priority,
+    this.description,
+    this.status = TaskStatus.notStarted,
+    this.priority = Priority.medium,
     this.estimatedTime,
-    this.actualTime,
+    this.actualTime = 0,
+    this.dueDate,
+    this.completedAt,
     this.sortOrder = 0,
     this.isArchived = false,
     required this.createdAt,
     required this.updatedAt,
-    this.completedAt,
-    this.assignedUserId,
   });
 
   final String id;
   final String todoId;
   final String name;
-  final String description;
-  final TodoStatus status;
-  final TodoPriority priority;
+  final String? description;
+  final TaskStatus status;
+  final Priority priority;
   final int? estimatedTime; // in minutes
-  final int? actualTime; // in minutes
+  final int actualTime; // in minutes
+  final DateTime? dueDate;
+  final DateTime? completedAt;
   final int sortOrder;
   final bool isArchived;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final DateTime? completedAt;
-  final String? assignedUserId;
 
   /// Check if subtask is completed
-  bool get isCompleted => status == TodoStatus.completed;
+  bool get isCompleted =>
+      status == TaskStatus.completed || status == TaskStatus.done;
 
-  /// Get estimated time in hours
-  double get estimatedTimeInHours {
-    if (estimatedTime == null) return 0.0;
-    return estimatedTime! / 60.0;
-  }
-
-  /// Get actual time in hours
-  double get actualTimeInHours {
-    if (actualTime == null) return 0.0;
-    return actualTime! / 60.0;
+  /// Check if subtask is overdue
+  bool get isOverdue {
+    if (dueDate == null || isCompleted) return false;
+    return DateTime.now().isAfter(dueDate!);
   }
 
   /// Create a copy of subtask with updated fields
@@ -57,16 +51,16 @@ class Subtask extends Equatable {
     String? todoId,
     String? name,
     String? description,
-    TodoStatus? status,
-    TodoPriority? priority,
+    TaskStatus? status,
+    Priority? priority,
     int? estimatedTime,
     int? actualTime,
+    DateTime? dueDate,
+    DateTime? completedAt,
     int? sortOrder,
     bool? isArchived,
     DateTime? createdAt,
     DateTime? updatedAt,
-    DateTime? completedAt,
-    String? assignedUserId,
   }) {
     return Subtask(
       id: id ?? this.id,
@@ -77,12 +71,12 @@ class Subtask extends Equatable {
       priority: priority ?? this.priority,
       estimatedTime: estimatedTime ?? this.estimatedTime,
       actualTime: actualTime ?? this.actualTime,
+      dueDate: dueDate ?? this.dueDate,
+      completedAt: completedAt ?? this.completedAt,
       sortOrder: sortOrder ?? this.sortOrder,
       isArchived: isArchived ?? this.isArchived,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      completedAt: completedAt ?? this.completedAt,
-      assignedUserId: assignedUserId ?? this.assignedUserId,
     );
   }
 
@@ -96,16 +90,60 @@ class Subtask extends Equatable {
     priority,
     estimatedTime,
     actualTime,
+    dueDate,
+    completedAt,
     sortOrder,
     isArchived,
     createdAt,
     updatedAt,
-    completedAt,
-    assignedUserId,
   ];
 
   @override
   String toString() {
-    return 'Subtask(id: $id, name: $name, status: $status, priority: $priority)';
+    return 'Subtask(id: $id, name: $name, status: $status, todoId: $todoId)';
+  }
+
+  /// Create Subtask from JSON
+  factory Subtask.fromJson(Map<String, dynamic> json) {
+    return Subtask(
+      id: json['id'] ?? '',
+      todoId: json['todo_id'] ?? '',
+      name: json['name'] ?? '',
+      description: json['description'],
+      status: TaskStatus.fromString(json['status'] ?? 'not_started'),
+      priority: Priority.fromString(json['priority'] ?? 'medium'),
+      estimatedTime: json['estimated_time'],
+      actualTime: json['actual_time'] ?? 0,
+      dueDate: json['due_date'] != null
+          ? DateTime.tryParse(json['due_date'])
+          : null,
+      completedAt: json['completed_at'] != null
+          ? DateTime.tryParse(json['completed_at'])
+          : null,
+      sortOrder: json['sort_order'] ?? 0,
+      isArchived: json['is_archived'] ?? false,
+      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),
+    );
+  }
+
+  /// Convert Subtask to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'todo_id': todoId,
+      'name': name,
+      'description': description,
+      'status': status.value,
+      'priority': priority.value,
+      'estimated_time': estimatedTime,
+      'actual_time': actualTime,
+      'due_date': dueDate?.toIso8601String(),
+      'completed_at': completedAt?.toIso8601String(),
+      'sort_order': sortOrder,
+      'is_archived': isArchived,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
   }
 }

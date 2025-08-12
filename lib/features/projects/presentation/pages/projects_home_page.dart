@@ -15,6 +15,7 @@ import '../bloc/projects_state.dart';
 import '../widgets/create_project_modal.dart';
 import '../widgets/project_card.dart';
 import '../widgets/project_stats_card.dart';
+import 'project_detail_page.dart';
 
 /// Projects home page with beautiful responsive UI
 /// Inspired by modern task management interfaces
@@ -609,9 +610,12 @@ class _ProjectsHomeViewState extends State<_ProjectsHomeView> {
         return ProjectCard(
           project: projects[index],
           onTap: () {
-            Navigator.of(
-              context,
-            ).pushNamed('/project-detail', arguments: projects[index]);
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) =>
+                    ProjectDetailPage(project: projects[index]),
+              ),
+            );
           },
           onFavoriteToggle: () {
             context.read<ProjectsBloc>().add(
