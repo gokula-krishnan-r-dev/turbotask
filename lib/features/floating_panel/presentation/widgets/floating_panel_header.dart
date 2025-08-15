@@ -1,16 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:turbotask/features/floating_panel/presentation/widgets/project_selector.dart';
+import 'package:turbotask/features/projects/presentation/bloc/projects_bloc.dart';
 
 /// Header widget for the floating panel with controls
-class FloatingPanelHeader extends StatelessWidget {
+class FloatingPanelHeader extends StatefulWidget {
   final VoidCallback onSettingsPressed;
   final VoidCallback onClosePressed;
+  final String? selectedProjectId;
+  final Function(String?) onProjectSelected;
 
   const FloatingPanelHeader({
     super.key,
     required this.onSettingsPressed,
     required this.onClosePressed,
+    this.selectedProjectId,
+    required this.onProjectSelected,
   });
+
+  @override
+  State<FloatingPanelHeader> createState() => _FloatingPanelHeaderState();
+}
+
+class _FloatingPanelHeaderState extends State<FloatingPanelHeader> {
+  String? _selectedProjectId;
 
   @override
   Widget build(BuildContext context) {
@@ -28,38 +42,24 @@ class FloatingPanelHeader extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Row(
           children: [
-            // Enhanced Logo/Icon with animation
             Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    theme.colorScheme.primary,
-                    theme.colorScheme.primary.withOpacity(0.8),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.colorScheme.primary.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.task_alt,
-                size: 18,
-                color: theme.colorScheme.onPrimary,
+              width: 100,
+              height: 36,
+              padding: const EdgeInsets.only(right: 8),
+              child: ProjectSelector(
+                projects: context.read<ProjectsBloc>().state.projects,
+                selectedProjectId: _selectedProjectId,
+                onProjectSelected: (projectId) {
+                  setState(() {
+                    _selectedProjectId = projectId;
+                  });
+                  widget.onProjectSelected(projectId);
+                },
               ),
             ),
-
-            const SizedBox(width: 16),
-
             // Enhanced Title with subtitle
             Expanded(
               child: Column(
@@ -67,7 +67,7 @@ class FloatingPanelHeader extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   AutoSizeText(
-                    'TurboTask',
+                    'TurboTask Today',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: theme.colorScheme.onSurface,
@@ -75,15 +75,6 @@ class FloatingPanelHeader extends StatelessWidget {
                     ),
                     maxLines: 1,
                     minFontSize: 14,
-                  ),
-                  AutoSizeText(
-                    'Quick Access Panel',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    minFontSize: 10,
                   ),
                 ],
               ),
@@ -103,7 +94,7 @@ class FloatingPanelHeader extends StatelessWidget {
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     child: InkWell(
-                      onTap: onSettingsPressed,
+                      onTap: widget.onSettingsPressed,
                       borderRadius: BorderRadius.circular(8),
                       child: Padding(
                         padding: const EdgeInsets.all(8),
@@ -131,7 +122,7 @@ class FloatingPanelHeader extends StatelessWidget {
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     child: InkWell(
-                      onTap: onClosePressed,
+                      onTap: widget.onClosePressed,
                       borderRadius: BorderRadius.circular(8),
                       child: Padding(
                         padding: const EdgeInsets.all(8),

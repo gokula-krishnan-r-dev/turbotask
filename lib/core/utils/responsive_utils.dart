@@ -212,7 +212,7 @@ class ResponsiveUtils {
     } else if (isTablet(context) || isIPad(context)) {
       return 480;
     } else {
-      return 440; // Slightly narrower for better centering on desktop
+      return 540; // Slightly narrower for better centering on desktop
     }
   }
 

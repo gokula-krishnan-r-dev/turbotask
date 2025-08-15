@@ -11,14 +11,12 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../focus_mode/presentation/pages/focus_mode_page.dart';
 import '../../../projects/presentation/bloc/projects_bloc.dart';
-import '../../../projects/presentation/bloc/projects_state.dart';
 import '../../../projects/presentation/bloc/projects_event.dart';
 import '../widgets/floating_panel_header.dart';
-import '../widgets/project_selector.dart';
 import '../../../todos/domain/entities/kanban_board.dart';
 import '../../../todos/domain/entities/todo.dart';
 import '../../../todos/presentation/bloc/kanban_board_bloc.dart';
-import '../../../projects/presentation/widgets/task_card_widget.dart';
+import '../../../projects/presentation/widgets/today_task_card_widget.dart';
 import '../../../projects/presentation/widgets/add_task_widget.dart';
 
 /// Main floating panel page that stays on top of all applications
@@ -79,45 +77,10 @@ class _FloatingPanelPageState extends State<FloatingPanelPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDark
-                ? [
-                    const Color(0xFF1A1A1A).withOpacity(0.95),
-                    const Color(0xFF2A2A2A).withOpacity(0.95),
-                  ]
-                : [
-                    Colors.white.withOpacity(0.95),
-                    const Color(0xFFF8F9FA).withOpacity(0.95),
-                  ],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isDark
-                ? Colors.white.withOpacity(0.1)
-                : Colors.black.withOpacity(0.05),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.25),
-              blurRadius: 30,
-              offset: const Offset(0, 10),
-            ),
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
         margin: const EdgeInsets.all(8),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
@@ -125,49 +88,12 @@ class _FloatingPanelPageState extends State<FloatingPanelPage> {
             children: [
               // Enhanced Header with gradient
               Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isDark
-                        ? [
-                            theme.colorScheme.primary.withOpacity(0.2),
-                            theme.colorScheme.primary.withOpacity(0.1),
-                          ]
-                        : [
-                            theme.colorScheme.primary.withOpacity(0.1),
-                            theme.colorScheme.primary.withOpacity(0.05),
-                          ],
-                  ),
-                ),
                 child: FloatingPanelHeader(
                   onSettingsPressed: _openSettings,
                   onClosePressed: () => FloatingPanelManager.hidePanel(context),
-                ),
-              ),
-
-              // Project Selector with enhanced styling
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: BlocBuilder<ProjectsBloc, ProjectsState>(
-                  builder: (context, state) {
-                    if (state.isLoaded) {
-                      return ProjectSelector(
-                        projects: state.projects,
-                        selectedProjectId: _selectedProjectId,
-                        onProjectSelected: _onProjectSelected,
-                      );
-                    } else {
-                      return Container(
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceVariant.withOpacity(
-                            0.3,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Center(child: CircularProgressIndicator()),
-                      );
-                    }
-                  },
+                  selectedProjectId: _selectedProjectId,
+                  onProjectSelected: (projectId) =>
+                      _onProjectSelected(projectId!),
                 ),
               ),
 
@@ -179,9 +105,6 @@ class _FloatingPanelPageState extends State<FloatingPanelPage> {
                     ? BlocProvider(
                         key: ValueKey('kanban_bloc_$_selectedProjectId'),
                         create: (context) {
-                          print(
-                            'FloatingPanel: Creating new KanbanBoardBloc for project: $_selectedProjectId',
-                          );
                           return getIt<KanbanBoardBloc>()
                             ..add(LoadKanbanBoard(_selectedProjectId!));
                         },
@@ -632,7 +555,7 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
     final todayTasks = _filterTodayTasks(kanbanBoard);
 
     final todayColumn = KanbanColumn(
-      status: TaskStatus.inProgress,
+      status: TaskStatus.todo,
       title: 'Today',
       color: '#ffc107',
       todos: todayTasks,
@@ -641,27 +564,12 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
     return RefreshIndicator(
       onRefresh: _refreshTasks,
       color: theme.colorScheme.primary,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: theme.cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Tasks list
-            Expanded(child: _buildColumn(context, theme, todayColumn)),
-          ],
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Tasks list
+          Expanded(child: _buildColumn(context, theme, todayColumn)),
+        ],
       ),
     );
   }
@@ -676,11 +584,6 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
     );
 
     return Container(
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.2)),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -702,20 +605,12 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
                 }
 
                 return Container(
-                  decoration: BoxDecoration(
-                    color: candidateData.isNotEmpty
-                        ? AppColors.mint.withValues(alpha: 0.1)
-                        : null,
-                  ),
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
                     shrinkWrap: true,
                     itemCount: column.todos.length,
                     itemBuilder: (context, index) {
                       final todo = column.todos[index];
-                      print(
-                        'TodayColumnView: Rendering task "${todo.taskName}" for project: ${widget.projectId}',
-                      );
 
                       return Draggable<TaskDragData>(
                         data: TaskDragData(
@@ -728,8 +623,9 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
                           borderRadius: BorderRadius.circular(12),
                           child: SizedBox(
                             width: ResponsiveUtils.getColumnWidth(context) - 32,
-                            child: TaskCardWidget(
+                            child: TodayTaskCardWidget(
                               task: todo,
+                              isFirstTask: index == 0,
                               onTap: () => _onTaskTap(todo),
                               onEdit: () => _onTaskEdit(todo),
                               onDelete: () => _onTaskDelete(todo),
@@ -740,16 +636,17 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
                           height: 120,
                           margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
-                            color: theme.cardColor.withValues(alpha: 0.3),
+                            color: theme.cardColor.withOpacity(0.3),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: theme.dividerColor.withValues(alpha: 0.3),
+                              color: theme.dividerColor.withOpacity(0.3),
                               style: BorderStyle.solid,
                             ),
                           ),
                         ),
-                        child: TaskCardWidget(
+                        child: TodayTaskCardWidget(
                           task: todo,
+                          isFirstTask: index == 0,
                           onTap: () => _onTaskTap(todo),
                           onEdit: () => _onTaskEdit(todo),
                           onDelete: () => _onTaskDelete(todo),
@@ -993,7 +890,7 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
       CreateTodoInColumn(
         projectId: widget.projectId,
         taskName: taskName,
-        status: status,
+        status: TaskStatus.today,
       ),
     );
   }
@@ -1005,6 +902,9 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
         context,
         isFocusMode: true,
       );
+
+      //resize the panel window for focus mode
+      await FloatingPanelManager.resizePanelForFocusMode(true);
     }
 
     if (currentState is KanbanBoardLoaded) {
@@ -1105,8 +1005,9 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
                 child: SingleChildScrollView(
                   controller: scrollController,
                   padding: const EdgeInsets.all(16),
-                  child: TaskCardWidget(
+                  child: TodayTaskCardWidget(
                     task: task,
+                    isFirstTask: true, // Always show timer in task detail view
                     onTap: () {},
                     onEdit: () => _onTaskEdit(task),
                     onDelete: () => _onTaskDelete(task),

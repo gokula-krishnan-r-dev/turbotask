@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/services/focus_mode_service.dart';
+import '../../../../core/services/focus_toast_service.dart';
 import '../../../../core/services/floating_panel_manager.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../todos/domain/entities/todo.dart';
 import '../../../todos/presentation/bloc/kanban_board_bloc.dart';
 import '../widgets/focus_mode_floating_window.dart';
+import '../widgets/focus_toast_widget.dart';
 
 /// Focus Mode page with a small floating window (300x100px) for task management
 class FocusModePage extends StatefulWidget {
@@ -27,23 +29,49 @@ class FocusModePage extends StatefulWidget {
 
 class _FocusModePageState extends State<FocusModePage> {
   late FocusModeService _focusModeService;
+  late FocusToastService _focusToastService;
 
   @override
   void initState() {
     super.initState();
     _focusModeService = getIt<FocusModeService>();
+    _focusToastService = getIt<FocusToastService>();
 
     // Auto-start with first available task
     if (widget.availableTasks.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _focusModeService.startFocusSession(widget.availableTasks.first);
+
+        // Start toast notifications for macOS
+        if (Platform.isMacOS) {
+          _focusToastService.startToasts();
+        }
       });
+    }
+
+    // Listen for focus mode state changes
+    _focusModeService.addListener(_onFocusModeStateChanged);
+  }
+
+  void _onFocusModeStateChanged() {
+    // Sync toast service with focus mode service
+    if (_focusModeService.isSessionActive) {
+      _focusToastService.resumeToasts();
+    } else {
+      _focusToastService.pauseToasts();
     }
   }
 
   @override
   void dispose() {
-    // Don't stop the service on dispose to maintain session across navigation
+    // Don't stop the focus mode service on dispose to maintain session across navigation
+    _focusModeService.removeListener(_onFocusModeStateChanged);
+
+    // But do stop the toast notifications
+    if (Platform.isMacOS) {
+      _focusToastService.stopToasts();
+    }
+
     super.dispose();
   }
 
@@ -55,6 +83,7 @@ class _FocusModePageState extends State<FocusModePage> {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
+          // Main floating window
           Container(
             width: 380,
             height: 70,
@@ -98,6 +127,10 @@ class _FocusModePageState extends State<FocusModePage> {
               ),
             ),
           ),
+
+          // Toast notifications (macOS only)
+          if (Platform.isMacOS)
+            FocusToastWidget(toastService: _focusToastService),
         ],
       ),
     );

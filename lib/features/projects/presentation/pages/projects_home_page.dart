@@ -153,21 +153,10 @@ class _ProjectsHomeViewState extends State<_ProjectsHomeView> {
     String userName,
   ) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         // Sidebar
-        Container(
-          width: 280,
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            border: Border(
-              right: BorderSide(
-                color: theme.dividerColor.withValues(alpha: 0.1),
-                width: 1,
-              ),
-            ),
-          ),
-          child: _buildSidebar(context, theme),
-        ),
+        Container(width: 280, child: _buildSidebar(context, theme)),
         // Main content
         Expanded(child: _buildMainContent(context, theme, userName)),
       ],
@@ -187,83 +176,129 @@ class _ProjectsHomeViewState extends State<_ProjectsHomeView> {
       children: [
         // Header
         Container(
+          margin: const EdgeInsets.all(10),
           padding: const EdgeInsets.all(24),
-          child: Row(
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.mint, AppColors.teal],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppColors.mint, AppColors.teal],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.task_alt,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.task_alt,
+                  const SizedBox(width: 12),
+                  Text(
+                    'TurboTask',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.mint,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        child: Text(
+                          'BETA',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'v0.1.0',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.textTheme.bodySmall?.color?.withValues(
+                            alpha: 0.7,
+                          ),
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(width: 12),
+                ],
+              ),
+              const SizedBox(height: 12),
+              //ad a text for plan free
+              Text(
+                'Plan: Free',
+                style: theme.textTheme.bodySmall?.copyWith(
                   color: Colors.white,
-                  size: 20,
+                  fontSize: 16,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(height: 12),
+              //add a subtext about this applictaion
               Text(
-                'TurboTask',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+                'A simple and beautiful task management application for your daily tasks and projects. Actively developing and improving the application.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: 12,
+                  color: theme.textTheme.bodySmall?.color?.withValues(
+                    alpha: 0.7,
+                  ),
                 ),
               ),
             ],
           ),
         ),
 
-        // Navigation items
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: [
-                _buildNavItem(
-                  context,
-                  Icons.home_outlined,
-                  'Home',
-                  true,
-                  () {},
-                ),
-                _buildNavItem(
-                  context,
-                  Icons.folder_outlined,
-                  'All Projects',
-                  false,
-                  () {
-                    context.read<ProjectsBloc>().add(
-                      const ProjectsEvent.clearFilter(),
-                    );
-                  },
-                ),
-                _buildNavItem(
-                  context,
-                  Icons.favorite_outline,
-                  'Favorites',
-                  false,
-                  () {
-                    // Filter favorites
-                  },
-                ),
-                _buildNavItem(
-                  context,
-                  Icons.archive_outlined,
-                  'Archived',
-                  false,
-                  () {
-                    // Show archived
-                  },
-                ),
-              ],
-            ),
+        //here add a card with inside add a buton for create project and a text for create project
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+
+          child: Column(
+            children: [
+              //show a button for create project
+              FilledButton.icon(
+                onPressed: () {
+                  _showCreateProjectModal(context);
+                },
+                icon: const Icon(Icons.add),
+                label: Text('Create Project'),
+              ),
+            ],
           ),
         ),
+
+        const Spacer(),
 
         // User profile and settings
         Container(
@@ -389,66 +424,71 @@ class _ProjectsHomeViewState extends State<_ProjectsHomeView> {
           backgroundColor: theme.scaffoldBackgroundColor,
           automaticallyImplyLeading: !ResponsiveUtils.isDesktop(context),
           elevation: 0,
-          flexibleSpace: Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: ResponsiveUtils.getResponsivePadding(
-                context,
-              ).horizontal,
-              vertical: 16,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _getGreeting(),
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontSize: ResponsiveUtils.isDesktop(context)
-                                  ? 28
-                                  : 24,
+          expandedHeight: ResponsiveUtils.isDesktop(context) ? 100 : 100,
+          flexibleSpace: SafeArea(
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: ResponsiveUtils.getResponsivePadding(
+                  context,
+                ).horizontal,
+                vertical: 8,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _getGreeting(userName),
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                fontSize: ResponsiveUtils.isDesktop(context)
+                                    ? 28
+                                    : 24,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Ready to manage your projects?',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              color: theme.textTheme.bodyLarge?.color
-                                  ?.withValues(alpha: 0.7),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Ready to manage your projects?',
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                color: theme.textTheme.bodyLarge?.color
+                                    ?.withValues(alpha: 0.7),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (!ResponsiveUtils.isDesktop(context)) ...[
-                      IconButton(
-                        onPressed: () {
-                          getIt<ThemeManager>().toggleTheme();
-                        },
-                        icon: Icon(
-                          theme.brightness == Brightness.dark
-                              ? Icons.light_mode
-                              : Icons.dark_mode,
+                          ],
                         ),
-                        tooltip: 'Toggle theme',
                       ),
-                      IconButton(
-                        onPressed: () {
-                          getIt<AuthBloc>().add(const AuthStateEvent.logout());
-                        },
-                        icon: const Icon(Icons.logout),
-                        tooltip: 'Logout',
-                      ),
+                      if (!ResponsiveUtils.isDesktop(context)) ...[
+                        IconButton(
+                          onPressed: () {
+                            getIt<ThemeManager>().toggleTheme();
+                          },
+                          icon: Icon(
+                            theme.brightness == Brightness.dark
+                                ? Icons.light_mode
+                                : Icons.dark_mode,
+                          ),
+                          tooltip: 'Toggle theme',
+                        ),
+                        IconButton(
+                          onPressed: () {
+                            getIt<AuthBloc>().add(
+                              const AuthStateEvent.logout(),
+                            );
+                          },
+                          icon: const Icon(Icons.logout),
+                          tooltip: 'Logout',
+                        ),
+                      ],
                     ],
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -507,7 +547,7 @@ class _ProjectsHomeViewState extends State<_ProjectsHomeView> {
                         ),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.mint,
-                          foregroundColor: Colors.white,
+                          foregroundColor: Colors.black,
                         ),
                       );
                     },
@@ -591,7 +631,7 @@ class _ProjectsHomeViewState extends State<_ProjectsHomeView> {
 
   Widget _buildProjectsGrid(BuildContext context, List<Project> projects) {
     final crossAxisCount = ResponsiveUtils.isDesktop(context)
-        ? 3
+        ? 3.2
         : ResponsiveUtils.isTablet(context) || ResponsiveUtils.isIPad(context)
         ? 2
         : 1;
@@ -600,7 +640,7 @@ class _ProjectsHomeViewState extends State<_ProjectsHomeView> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
+        crossAxisCount: crossAxisCount.toInt(),
         childAspectRatio: ResponsiveUtils.isDesktop(context) ? 1.2 : 1.3,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
@@ -629,6 +669,7 @@ class _ProjectsHomeViewState extends State<_ProjectsHomeView> {
 
   void _showCreateProjectModal(BuildContext context) {
     final bloc = context.read<ProjectsBloc>();
+
     showDialog(
       context: context,
       builder: (dialogContext) =>
@@ -636,14 +677,14 @@ class _ProjectsHomeViewState extends State<_ProjectsHomeView> {
     );
   }
 
-  String _getGreeting() {
+  String _getGreeting(String userName) {
     final hour = DateTime.now().hour;
     if (hour < 12) {
-      return 'Good Morning';
+      return 'Hey, Welcome back $userName';
     } else if (hour < 17) {
-      return 'Good Afternoon';
+      return 'Good Afternoon $userName';
     } else {
-      return 'Good Evening';
+      return 'Good Evening $userName  ';
     }
   }
 }

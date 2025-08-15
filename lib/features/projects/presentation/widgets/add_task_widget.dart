@@ -50,7 +50,7 @@ class _AddTaskWidgetState extends State<AddTaskWidget> {
       widget.onAddTask(taskName);
       _controller.clear();
       setState(() {
-        _isExpanded = false;
+        _isExpanded = true;
       });
     }
   }

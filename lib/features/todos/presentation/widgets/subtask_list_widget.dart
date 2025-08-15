@@ -9,6 +9,7 @@ import 'subtask_item_widget.dart';
 class SubtaskListWidget extends StatefulWidget {
   const SubtaskListWidget({
     super.key,
+    required this.isVisible,
     required this.todoId,
     this.isExpanded = false,
     this.onExpandToggle,
@@ -16,6 +17,7 @@ class SubtaskListWidget extends StatefulWidget {
   });
 
   final String todoId;
+  final bool isVisible;
   final bool isExpanded;
   final VoidCallback? onExpandToggle;
   final int maxVisibleSubtasks;
@@ -43,7 +45,7 @@ class _SubtaskListWidgetState extends State<SubtaskListWidget>
       curve: Curves.easeInOut,
     );
 
-    if (widget.isExpanded) {
+    if (widget.isExpanded && widget.isVisible) {
       _animationController.value = 1.0;
     }
   }
@@ -51,7 +53,7 @@ class _SubtaskListWidgetState extends State<SubtaskListWidget>
   @override
   void didUpdateWidget(SubtaskListWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isExpanded != oldWidget.isExpanded) {
+    if (widget.isExpanded != oldWidget.isExpanded && widget.isVisible) {
       if (widget.isExpanded) {
         _animationController.forward();
       } else {
@@ -78,9 +80,9 @@ class _SubtaskListWidgetState extends State<SubtaskListWidget>
         }
 
         final subtasks = _getSubtasks(state);
-        if (subtasks.isEmpty && !_isAddingSubtask) {
-          return _buildEmptyState(theme);
-        }
+        // if (subtasks.isEmpty && !_isAddingSubtask) {
+        //   return _buildEmptyState(theme);
+        // }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -97,7 +99,7 @@ class _SubtaskListWidgetState extends State<SubtaskListWidget>
                   child: FadeTransition(opacity: _fadeAnimation, child: child),
                 );
               },
-              child: widget.isExpanded
+              child: widget.isExpanded && widget.isVisible
                   ? _buildExpandedSubtasks(theme, subtasks, state)
                   : _buildCollapsedSubtasks(theme, subtasks),
             ),
@@ -120,107 +122,64 @@ class _SubtaskListWidgetState extends State<SubtaskListWidget>
     );
   }
 
-  Widget _buildEmptyState(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: InkWell(
-        onTap: _startAddingSubtask,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: theme.dividerColor.withOpacity(0.3),
-              style: BorderStyle.solid,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.add_circle_outline, size: 20, color: AppColors.mint),
-              const SizedBox(width: 8),
-              Text(
-                'Add subtask',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppColors.mint,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildSubtasksHeader(ThemeData theme, List<Subtask> subtasks) {
     final completedCount = subtasks.where((s) => s.isCompleted).length;
     final totalCount = subtasks.length;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: widget.onExpandToggle,
-            child: Row(
-              children: [
-                Icon(
-                  widget.isExpanded
-                      ? Icons.keyboard_arrow_down
-                      : Icons.keyboard_arrow_right,
-                  size: 20,
-                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '$completedCount/$totalCount Subtasks',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 8),
-
-          // Progress indicator
-          if (totalCount > 0) ...[
-            Expanded(
-              child: Container(
-                height: 4,
-                decoration: BoxDecoration(
-                  color: theme.dividerColor.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-                child: FractionallySizedBox(
-                  widthFactor: completedCount / totalCount,
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.success,
-                      borderRadius: BorderRadius.circular(2),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 1.0, vertical: 4.0),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        //top border line
+        border: Border(
+          top: BorderSide(color: theme.dividerColor.withOpacity(0.3), width: 1),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2.0),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: widget.onExpandToggle,
+              child: Row(
+                children: [
+                  Text(
+                    '$completedCount/$totalCount Subtasks',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                        0.8,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
-          ],
 
-          // Add subtask button (when expanded)
-          if (widget.isExpanded && !_isAddingSubtask) ...[
             const SizedBox(width: 8),
-            IconButton(
-              onPressed: _startAddingSubtask,
-              icon: Icon(Icons.add, size: 20, color: AppColors.mint),
-              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              padding: EdgeInsets.zero,
+
+            // Add subtask button (when expanded)
+            if (widget.isExpanded && !_isAddingSubtask) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: _startAddingSubtask,
+                icon: Icon(Icons.add, size: 20, color: AppColors.mint),
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                padding: EdgeInsets.zero,
+              ),
+            ],
+
+            const Spacer(),
+
+            Icon(
+              widget.isExpanded
+                  ? Icons.keyboard_arrow_down
+                  : Icons.keyboard_arrow_right,
+              size: 20,
+              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -266,7 +225,7 @@ class _SubtaskListWidgetState extends State<SubtaskListWidget>
         ),
 
         // Add subtask input
-        if (_isAddingSubtask) _buildAddSubtaskInput(theme, state),
+        if (widget.isVisible) _buildAddSubtaskInput(theme, state),
 
         // Loading indicator for operations
         if (state is SubtaskLoading && state.previousSubtasks != null)
@@ -286,7 +245,7 @@ class _SubtaskListWidgetState extends State<SubtaskListWidget>
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(8),
@@ -294,18 +253,6 @@ class _SubtaskListWidgetState extends State<SubtaskListWidget>
         ),
         child: Row(
           children: [
-            // Checkbox placeholder
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                border: Border.all(color: theme.dividerColor, width: 2),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-
-            const SizedBox(width: 12),
-
             // Text input
             Expanded(
               child: TextField(
@@ -313,6 +260,14 @@ class _SubtaskListWidgetState extends State<SubtaskListWidget>
                 decoration: const InputDecoration(
                   hintText: 'Enter subtask task title*',
                   border: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  hoverColor: Colors.transparent,
+                  fillColor: Colors.transparent,
+                  filled: true,
                   contentPadding: EdgeInsets.zero,
                   isDense: true,
                 ),

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:turbotask/features/todos/presentation/widgets/subtask_list_widget.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -11,7 +12,7 @@ import '../../../todos/domain/entities/todo.dart';
 import '../../../todos/presentation/bloc/note_bloc.dart';
 import '../../../todos/presentation/bloc/subtask_bloc.dart';
 import '../../../todos/presentation/widgets/note_editor_widget.dart';
-import '../../../todos/presentation/widgets/subtask_list_widget.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 /// Task card widget for displaying tasks in the kanban board
 class TaskCardWidget extends StatefulWidget {
@@ -34,6 +35,7 @@ class TaskCardWidget extends StatefulWidget {
 
 class _TaskCardWidgetState extends State<TaskCardWidget> {
   bool _isSubtasksExpanded = false;
+  bool _isSubtasksVisible = false;
 
   @override
   Widget build(BuildContext context) {
@@ -62,18 +64,6 @@ class _TaskCardWidgetState extends State<TaskCardWidget> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Priority indicator
-                    Container(
-                      width: 4,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: _getPriorityColor(widget.task.priority),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
                     // Task title
                     Expanded(
                       child: Text(
@@ -86,48 +76,39 @@ class _TaskCardWidgetState extends State<TaskCardWidget> {
                       ),
                     ),
 
-                    // More actions
-                    PopupMenuButton<String>(
-                      icon: Icon(
-                        Icons.more_vert,
-                        size: 18,
-                        color: theme.iconTheme.color?.withValues(alpha: 0.6),
-                      ),
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit, size: 16),
-                              SizedBox(width: 8),
-                              Text('Edit'),
-                            ],
+                    const Spacer(),
+
+                    //add a button with only icon subtask use svg
+                    Row(
+                      children: [
+                        //add a button with only icon subtask use svg
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _isSubtasksExpanded = !_isSubtasksExpanded;
+                              _isSubtasksVisible = !_isSubtasksVisible;
+                            });
+                            print('Subtask button pressed');
+                          },
+                          child: SvgPicture.asset(
+                            'assets/icons/subtask.svg',
+                            width: 20,
+                            height: 20,
                           ),
                         ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete, size: 16, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text(
-                                'Delete',
-                                style: TextStyle(color: Colors.red),
-                              ),
-                            ],
+
+                        const SizedBox(width: 8),
+
+                        //add a button for note
+                        GestureDetector(
+                          onTap: () => _openNotesList(context),
+                          child: Icon(
+                            Icons.note_outlined,
+                            size: 16,
+                            color: AppColors.mint,
                           ),
                         ),
                       ],
-                      onSelected: (value) {
-                        switch (value) {
-                          case 'edit':
-                            widget.onEdit?.call();
-                            break;
-                          case 'delete':
-                            widget.onDelete?.call();
-                            break;
-                        }
-                      },
                     ),
                   ],
                 ),
@@ -176,108 +157,42 @@ class _TaskCardWidgetState extends State<TaskCardWidget> {
                   ),
                 ],
 
-                // Subtasks
-                const SizedBox(height: 12),
-                SubtaskListWidget(
-                  todoId: widget.task.id,
-                  isExpanded: _isSubtasksExpanded,
-                  onExpandToggle: () {
-                    setState(() {
-                      _isSubtasksExpanded = !_isSubtasksExpanded;
-                    });
-                  },
-                ),
+                // // Subtasks
+                if (_isSubtasksVisible) ...[
+                  const SizedBox(height: 12),
+                  SubtaskListWidget(
+                    isVisible: _isSubtasksVisible,
+                    todoId: widget.task.id,
+                    isExpanded: _isSubtasksExpanded,
+                    onExpandToggle: () {
+                      setState(() {
+                        _isSubtasksExpanded = !_isSubtasksExpanded;
+                      });
+                    },
+                  ),
+                ],
 
                 // Footer with assignee and due date
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    // Assignee
-                    if (widget.task.assignedToName != null) ...[
-                      CircleAvatar(
-                        radius: 12,
-                        backgroundColor: AppColors.mint,
-                        child: Text(
-                          widget.task.assignedToName!
-                              .substring(0, 1)
-                              .toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-
-                    // Priority badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getPriorityColor(
-                          widget.task.priority,
-                        ).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        widget.task.priority.displayName,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: _getPriorityColor(widget.task.priority),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
+                    Text(
+                      "+EST",
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.textTheme.bodySmall?.color?.withValues(
+                          alpha: 0.7,
                         ),
                       ),
                     ),
-
                     const Spacer(),
-
-                    // Note button
-                    IconButton(
-                      onPressed: () => _openNotesList(context),
-                      icon: Icon(
-                        Icons.note_outlined,
-                        size: 16,
-                        color: AppColors.mint,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 28,
-                        minHeight: 28,
-                      ),
-                      padding: EdgeInsets.zero,
-                      tooltip: 'Notes',
-                    ),
-
-                    const SizedBox(width: 8),
-
-                    // Due date
-                    if (widget.task.dueDate != null) ...[
-                      Icon(
-                        Icons.schedule,
-                        size: 12,
-                        color: _isOverdue(widget.task.dueDate)
-                            ? Colors.red
-                            : theme.iconTheme.color?.withValues(alpha: 0.6),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatDueDate(widget.task.dueDate!),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: 10,
-                          color: _isOverdue(widget.task.dueDate)
-                              ? Colors.red
-                              : theme.textTheme.bodySmall?.color?.withValues(
-                                  alpha: 0.6,
-                                ),
-                          fontWeight: _isOverdue(widget.task.dueDate)
-                              ? FontWeight.w600
-                              : FontWeight.normal,
+                    Text(
+                      "0m",
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.textTheme.bodySmall?.color?.withValues(
+                          alpha: 0.7,
                         ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ],
@@ -286,41 +201,6 @@ class _TaskCardWidgetState extends State<TaskCardWidget> {
         ),
       ),
     ); // Close BlocProvider
-  }
-
-  Color _getPriorityColor(Priority priority) {
-    switch (priority) {
-      case Priority.low:
-        return Colors.green;
-      case Priority.medium:
-        return Colors.blue;
-      case Priority.high:
-        return Colors.orange;
-      case Priority.urgent:
-        return Colors.red;
-    }
-  }
-
-  bool _isOverdue(DateTime? dueDate) {
-    if (dueDate == null) return false;
-    return DateTime.now().isAfter(dueDate);
-  }
-
-  String _formatDueDate(DateTime dueDate) {
-    final now = DateTime.now();
-    final difference = dueDate.difference(now).inDays;
-
-    if (difference < 0) {
-      return '${difference.abs()} days ago';
-    } else if (difference == 0) {
-      return 'Today';
-    } else if (difference == 1) {
-      return 'Tomorrow';
-    } else if (difference < 7) {
-      return '$difference days';
-    } else {
-      return '${dueDate.day}/${dueDate.month}';
-    }
   }
 
   void _openNotesList(BuildContext context) {

@@ -17,9 +17,9 @@ class AuthManager {
   final ApiService _apiService;
 
   // Storage keys
-  static const String _accessTokenKey = 'access_token_v2';
-  static const String _refreshTokenKey = 'refresh_token_v2';
-  static const String _userDataKey = 'user_data_v2';
+  static const String _accessTokenKey = 'access_token';
+  static const String _refreshTokenKey = 'refresh_token';
+  static const String _userDataKey = 'user_data';
 
   // Stream controllers for reactive state management
   final StreamController<User?> _userController =

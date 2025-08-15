@@ -1,0 +1,17 @@
+name: focus_toast_plugin
+description: A plugin for focus toast notifications
+version: 0.0.1
+
+environment:
+  sdk: '>=3.8.0 <4.0.0'
+  flutter: '>=3.19.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      macos:
+        pluginClass: FocusToastPlugin

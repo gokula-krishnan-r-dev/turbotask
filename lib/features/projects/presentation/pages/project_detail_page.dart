@@ -136,6 +136,44 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
             ),
           ),
 
+          //add a button for turbo Now
+          GestureDetector(
+            onTap: () async {
+              if (Platform.isMacOS) {
+                await FloatingPanelManager.initializeFloatingPanel(
+                  context,
+                  isFocusMode: false,
+                );
+              }
+              //navigate to floating panel
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FloatingPanelPage(),
+                ),
+                (route) => false,
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.mint.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.mint.withValues(alpha: 0.1),
+                  style: BorderStyle.solid,
+                ),
+              ),
+              child: const Text(
+                "Turbo Now",
+                style: TextStyle(
+                  color: AppColors.mint,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+
           // Action buttons
           Row(
             children: [
@@ -386,27 +424,47 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
           ),
 
           //add a button for open FloatingPanel
-          IconButton(
-            onPressed: () async {
-              // Initialize floating panel for macOS
-              if (Platform.isMacOS) {
-                await FloatingPanelManager.initializeFloatingPanel(
-                  context,
-                  isFocusMode: false,
-                );
-              }
 
-              //navigate to floating panel
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const FloatingPanelPage(),
+          //only if coloun today show this icon
+          if (title == "Today") ...[
+            GestureDetector(
+              onTap: () async {
+                if (Platform.isMacOS) {
+                  await FloatingPanelManager.initializeFloatingPanel(
+                    context,
+                    isFocusMode: false,
+                  );
+                }
+                //navigate to floating panel
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const FloatingPanelPage(),
+                  ),
+                  (route) => false,
+                );
+              },
+              child: Container(
+                margin: const EdgeInsets.only(right: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.mint.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(55),
+                  border: Border.all(
+                    color: AppColors.mint.withValues(alpha: 0.1),
+                    style: BorderStyle.solid,
+                  ),
                 ),
-                (route) => false,
-              );
-            },
-            icon: const Icon(Icons.add),
-          ),
+                child: Text(
+                  "Turbo Note",
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColors.mint,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(

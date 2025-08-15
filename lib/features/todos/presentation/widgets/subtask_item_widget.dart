@@ -32,7 +32,7 @@ class SubtaskItemWidget extends StatelessWidget {
         onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: isCompleted
                 ? AppColors.success.withOpacity(0.1)

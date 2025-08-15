@@ -7,7 +7,16 @@ import '../auth/auth_manager.dart';
 import '../auth/secure_storage_service.dart';
 import '../network/api_service.dart';
 import '../theme/theme_manager.dart';
+import '../services/focus_toast_service.dart';
 import 'injection.config.dart';
+import '../../features/breaks/data/datasources/break_remote_datasource.dart';
+import '../../features/breaks/data/repositories/break_repository_impl.dart';
+import '../../features/breaks/domain/repositories/break_repository.dart';
+import '../../features/breaks/domain/usecases/start_break_usecase.dart';
+import '../../features/breaks/domain/usecases/stop_break_usecase.dart';
+import '../../features/breaks/domain/usecases/get_active_break_usecase.dart';
+import '../../features/breaks/domain/usecases/get_break_stats_usecase.dart';
+import '../../features/breaks/presentation/bloc/break_bloc.dart';
 
 /// Global service locator instance
 final getIt = GetIt.instance;
@@ -20,6 +29,9 @@ Future<void> configureDependencies() async {
 
   // Initialize injectable dependencies
   getIt.init();
+
+  // Register break-related dependencies
+  _registerBreakDependencies();
 
   // Initialize AuthManager after all dependencies are configured
   await getIt.get<AuthManager>().initialize();
@@ -35,6 +47,46 @@ Future<void> _registerExternalDependencies() async {
   final themeManager = ThemeManager();
   await themeManager.init();
   getIt.registerSingleton<ThemeManager>(themeManager);
+
+  // Register FocusToastService
+  getIt.registerSingleton<FocusToastService>(FocusToastService());
+}
+
+/// Register break-related dependencies manually
+void _registerBreakDependencies() {
+  // Data sources
+  getIt.registerLazySingleton<BreakRemoteDataSource>(
+    () => BreakRemoteDataSourceImpl(getIt<ApiService>()),
+  );
+
+  // Repositories
+  getIt.registerLazySingleton<BreakRepository>(
+    () => BreakRepositoryImpl(getIt<BreakRemoteDataSource>()),
+  );
+
+  // Use cases
+  getIt.registerLazySingleton<StartBreakUseCase>(
+    () => StartBreakUseCase(getIt<BreakRepository>()),
+  );
+  getIt.registerLazySingleton<StopBreakUseCase>(
+    () => StopBreakUseCase(getIt<BreakRepository>()),
+  );
+  getIt.registerLazySingleton<GetActiveBreakUseCase>(
+    () => GetActiveBreakUseCase(getIt<BreakRepository>()),
+  );
+  getIt.registerLazySingleton<GetBreakStatsUseCase>(
+    () => GetBreakStatsUseCase(getIt<BreakRepository>()),
+  );
+
+  // Bloc
+  getIt.registerFactory<BreakBloc>(
+    () => BreakBloc(
+      getIt<StartBreakUseCase>(),
+      getIt<StopBreakUseCase>(),
+      getIt<GetActiveBreakUseCase>(),
+      getIt<GetBreakStatsUseCase>(),
+    ),
+  );
 }
 
 /// Injectable module for registering services

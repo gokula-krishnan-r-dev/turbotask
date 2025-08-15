@@ -9,7 +9,7 @@ import 'network_exceptions.dart';
 class ApiService {
   static const String _baseUrl =
       'http://localhost:8080'; // Local development API URL
-  static const String _accessTokenKey = 'access_token';
+  static const String _accessTokenKey = 'se';
   static const String _refreshTokenKey = 'refresh_token';
 
   final Dio _dio;
@@ -264,7 +264,7 @@ class ApiService {
       if (refreshToken == null) return false;
 
       final response = await _dio.post(
-        '/auth/refresh',
+        '/api/v1/auth/refresh',
         data: {'refresh_token': refreshToken},
         options: Options(headers: {'Authorization': 'Bearer $refreshToken'}),
       );
