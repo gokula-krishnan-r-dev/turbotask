@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:turbotask/core/services/focus_mode_service.dart';
 import 'package:turbotask/features/todos/presentation/widgets/subtask_list_widget.dart';
-
+import 'package:turbotask/features/projects/presentation/widgets/hover_button_widget.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../todos/domain/entities/note.dart';
@@ -13,7 +13,6 @@ import '../../../todos/domain/entities/todo.dart';
 import '../../../todos/presentation/bloc/note_bloc.dart';
 import '../../../todos/presentation/bloc/subtask_bloc.dart';
 import '../../../todos/presentation/widgets/note_editor_widget.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'task_timer_widget.dart';
 
 /// Task card widget for displaying tasks in the kanban board
@@ -23,6 +22,7 @@ class TodayTaskCardWidget extends StatefulWidget {
     required this.task,
     this.onTap,
     this.onEdit,
+    this.onRefresh,
     this.onDelete,
     this.isFirstTask = false,
   });
@@ -30,6 +30,7 @@ class TodayTaskCardWidget extends StatefulWidget {
   final Todo task;
   final VoidCallback? onTap;
   final VoidCallback? onEdit;
+  final VoidCallback? onRefresh;
   final VoidCallback? onDelete;
   final bool isFirstTask;
 
@@ -66,10 +67,14 @@ class _TodayTaskCardWidgetState extends State<TodayTaskCardWidget> {
         child: Card(
           margin: const EdgeInsets.only(bottom: 12),
           elevation: 2,
-          shadowColor: Colors.black.withOpacity(0.1),
+          shadowColor: widget.isFirstTask
+              ? Colors.green.withOpacity(0.3)
+              : Colors.black.withOpacity(0.1),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: theme.dividerColor.withOpacity(0.1)),
+            side: widget.isFirstTask
+                ? BorderSide(color: Colors.green, width: 1.5)
+                : BorderSide(color: theme.dividerColor.withOpacity(0.1)),
           ),
           child: InkWell(
             onTap: widget.onTap,
@@ -91,12 +96,10 @@ class _TodayTaskCardWidgetState extends State<TodayTaskCardWidget> {
                             style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-
-                        const Spacer(),
 
                         // Timer widget for first task or active task
                         //show only first task
@@ -113,50 +116,24 @@ class _TodayTaskCardWidgetState extends State<TodayTaskCardWidget> {
                   ],
 
                   if (_isHovering) ...[
-                    const SizedBox(width: 8),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Subtask button
-                        GestureDetector(
-                          onTap: () {
+                        HoverButtonWidget(
+                          todo: widget.task,
+                          isSubtasksExpanded: _isSubtasksExpanded,
+                          isSubtasksVisible: _isSubtasksVisible,
+                          onSubtasksExpandToggle: () {
                             setState(() {
                               _isSubtasksExpanded = !_isSubtasksExpanded;
                               _isSubtasksVisible = !_isSubtasksVisible;
                             });
                           },
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surfaceVariant
-                                  .withOpacity(0.5),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: SvgPicture.asset(
-                              'assets/icons/subtask.svg',
-                              width: 16,
-                              height: 16,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(width: 8),
-
-                        // Note button
-                        GestureDetector(
-                          onTap: () => _openNotesList(context),
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surfaceVariant
-                                  .withOpacity(0.5),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.note_outlined,
-                              size: 16,
-                              color: AppColors.mint,
-                            ),
-                          ),
+                          onRefresh: () => widget.onRefresh?.call(),
+                          onNotesOpen: () {
+                            _openNotesList(context);
+                          },
                         ),
                       ],
                     ),

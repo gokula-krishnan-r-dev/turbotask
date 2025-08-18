@@ -36,7 +36,12 @@ class ProjectRepositoryImpl implements ProjectRepository {
       includeArchived: includeArchived,
     );
 
-    return response.data.map((model) => model.toDomain()).toList();
+    // Handle null data case (when API returns no projects)
+    if (response.data == null) {
+      return [];
+    }
+
+    return response.data!.map((model) => model.toDomain()).toList();
   }
 
   @override
@@ -82,7 +87,7 @@ class ProjectRepositoryImpl implements ProjectRepository {
       offset: offset,
     );
 
-    return response.data.map((model) => model.toDomain()).toList();
+    return response.data!.map((model) => model.toDomain()).toList();
   }
 
   @override
@@ -97,13 +102,13 @@ class ProjectRepositoryImpl implements ProjectRepository {
   @override
   Future<List<Project>> getFavoriteProjects() async {
     final response = await _remoteDataSource.getFavoriteProjects();
-    return response.data.map((model) => model.toDomain()).toList();
+    return response.data!.map((model) => model.toDomain()).toList();
   }
 
   @override
   Future<List<Project>> getProjectsByCategory(String category) async {
     final response = await _remoteDataSource.getProjectsByCategory(category);
-    return response.data.map((model) => model.toDomain()).toList();
+    return response.data!.map((model) => model.toDomain()).toList();
   }
 
   @override

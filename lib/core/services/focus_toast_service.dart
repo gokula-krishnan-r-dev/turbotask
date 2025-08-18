@@ -31,9 +31,7 @@ class FocusToastService extends ChangeNotifier {
   bool get respectFocusMode => _respectFocusMode;
 
   // Sound players
-  static const MethodChannel _channel = MethodChannel(
-    'com.turbotask/native_sound',
-  );
+  static const MethodChannel _channel = MethodChannel('focus_toast_plugin');
 
   // Regular toast messages
   final List<Map<String, String>> _regularMessages = [

@@ -629,6 +629,7 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
                               onTap: () => _onTaskTap(todo),
                               onEdit: () => _onTaskEdit(todo),
                               onDelete: () => _onTaskDelete(todo),
+                              onRefresh: () => _refreshTasks(),
                             ),
                           ),
                         ),
@@ -650,6 +651,7 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
                           onTap: () => _onTaskTap(todo),
                           onEdit: () => _onTaskEdit(todo),
                           onDelete: () => _onTaskDelete(todo),
+                          onRefresh: () => _refreshTasks(),
                         ),
                       );
                     },
@@ -812,12 +814,13 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
                 ),
                 const SizedBox(width: 8),
                 AutoSizeText(
-                  'Tip: Tasks due today, overdue, or in progress appear here',
+                  'Tip: Tasks due today will appear here',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.primary,
                     fontWeight: FontWeight.w500,
                   ),
-                  maxLines: 2,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -890,7 +893,7 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
       CreateTodoInColumn(
         projectId: widget.projectId,
         taskName: taskName,
-        status: TaskStatus.today,
+        status: TaskStatus.inProgress,
       ),
     );
   }
@@ -1007,6 +1010,7 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
                   padding: const EdgeInsets.all(16),
                   child: TodayTaskCardWidget(
                     task: task,
+                    onRefresh: () => _refreshTasks(),
                     isFirstTask: true, // Always show timer in task detail view
                     onTap: () {},
                     onEdit: () => _onTaskEdit(task),

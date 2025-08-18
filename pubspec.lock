@@ -461,6 +461,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  focus_toast_plugin:
+    dependency: "direct main"
+    description:
+      path: focus_toast_plugin
+      relative: true
+    source: path
+    version: "0.0.1"
   freezed:
     dependency: "direct dev"
     description:

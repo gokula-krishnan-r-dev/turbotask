@@ -32,7 +32,7 @@ class ProjectListResponseModel with _$ProjectListResponseModel {
   const factory ProjectListResponseModel({
     required bool success,
     required String message,
-    required List<ProjectModel> data,
+    List<ProjectModel>? data,
     @JsonKey(name: 'total_count') int? totalCount,
     @JsonKey(name: 'current_page') int? currentPage,
     @JsonKey(name: 'per_page') int? perPage,

@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../domain/entities/break_stats.dart';
 import '../../domain/usecases/start_break_usecase.dart';
 import '../../domain/usecases/stop_break_usecase.dart';
 import '../../domain/usecases/get_active_break_usecase.dart';
 import '../../domain/usecases/get_break_stats_usecase.dart';
 import '../../data/models/break_request_models.dart';
+import '../../../../core/services/request_tracker_service.dart';
 import 'break_event.dart';
 import 'break_state.dart';
 
@@ -14,6 +14,7 @@ class BreakBloc extends Bloc<BreakEvent, BreakState> {
   final StopBreakUseCase _stopBreakUseCase;
   final GetActiveBreakUseCase _getActiveBreakUseCase;
   final GetBreakStatsUseCase _getBreakStatsUseCase;
+  final RequestTrackerService _requestTracker = RequestTrackerService();
 
   Timer? _timer;
 
@@ -37,6 +38,19 @@ class BreakBloc extends Bloc<BreakEvent, BreakState> {
   }
 
   Future<void> _onStartBreak(StartBreak event, Emitter<BreakState> emit) async {
+    // Generate unique request key
+    final requestKey = _requestTracker.generateBreakStartKey(
+      todoId: event.todoId,
+      projectId: event.projectId,
+      breakType: event.breakType,
+    );
+
+    // Try to add request - returns false if duplicate
+    if (!_requestTracker.tryAddRequest(requestKey)) {
+      print('BreakBloc: Duplicate request blocked for todoId: ${event.todoId}');
+      return;
+    }
+
     print('BreakBloc: Starting break for todoId: ${event.todoId}');
 
     try {
@@ -66,6 +80,9 @@ class BreakBloc extends Bloc<BreakEvent, BreakState> {
     } catch (e) {
       print('BreakBloc Error: $e');
       emit(BreakState.error(e.toString()));
+    } finally {
+      // Always remove the request when done (success or failure)
+      _requestTracker.removeRequest(requestKey);
     }
   }
 

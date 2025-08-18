@@ -7,7 +7,6 @@ import '../auth/auth_manager.dart';
 import '../auth/secure_storage_service.dart';
 import '../network/api_service.dart';
 import '../theme/theme_manager.dart';
-import '../services/focus_toast_service.dart';
 import 'injection.config.dart';
 import '../../features/breaks/data/datasources/break_remote_datasource.dart';
 import '../../features/breaks/data/repositories/break_repository_impl.dart';
@@ -33,6 +32,8 @@ Future<void> configureDependencies() async {
   // Register break-related dependencies
   _registerBreakDependencies();
 
+  // Note: TodoActions dependencies are registered automatically via @injectable annotations
+
   // Initialize AuthManager after all dependencies are configured
   await getIt.get<AuthManager>().initialize();
 }
@@ -48,8 +49,7 @@ Future<void> _registerExternalDependencies() async {
   await themeManager.init();
   getIt.registerSingleton<ThemeManager>(themeManager);
 
-  // Register FocusToastService
-  getIt.registerSingleton<FocusToastService>(FocusToastService());
+  // Note: FocusToastService is registered automatically via @singleton annotation
 }
 
 /// Register break-related dependencies manually

@@ -560,6 +560,9 @@ class _ProjectsHomeViewState extends State<_ProjectsHomeView> {
               // Projects grid
               BlocBuilder<ProjectsBloc, ProjectsState>(
                 builder: (context, state) {
+                  if (state.hasError) {
+                    return _buildEmptyState(context, theme);
+                  }
                   if (state.isLoading) {
                     return const Center(
                       child: Padding(
@@ -587,44 +590,103 @@ class _ProjectsHomeViewState extends State<_ProjectsHomeView> {
 
   Widget _buildEmptyState(BuildContext context, ThemeData theme) {
     return Container(
-      padding: const EdgeInsets.all(48),
-      child: Column(
-        children: [
-          Icon(
-            Icons.folder_open_outlined,
-            size: 64,
-            color: theme.iconTheme.color?.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No projects yet',
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: theme.textTheme.titleLarge?.color?.withValues(alpha: 0.7),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Create your first project to get started',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
-            ),
-            textAlign: TextAlign.center,
-          ),
+      height: 400,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.dark
+            ? const Color(0xFF1A1A1A)
+            : const Color(0xFFF8F9FA),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.black.withValues(alpha: 0.1),
+          width: 1,
+        ),
+      ),
+      child: CustomPaint(
+        painter: _GridPatternPainter(
+          theme.brightness == Brightness.dark
+              ? Colors.white.withValues(alpha: 0.03)
+              : Colors.black.withValues(alpha: 0.03),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(48),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Rocket emoji with subtle animation
+              TweenAnimationBuilder<double>(
+                duration: const Duration(seconds: 2),
+                tween: Tween(begin: 0.0, end: 1.0),
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(0, -10 * (1 - value)),
+                    child: Opacity(
+                      opacity: value,
+                      child: const Text('🚀', style: TextStyle(fontSize: 48)),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
 
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: () {
-              _showCreateProjectModal(context);
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Create Your First Project'),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.mint,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
+              // Main text
+              Text(
+                'Create your first list to get started 🚀',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.brightness == Brightness.dark
+                      ? Colors.white.withValues(alpha: 0.9)
+                      : Colors.black.withValues(alpha: 0.8),
+                  letterSpacing: -0.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 32),
+
+              // Create button with modern design
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.mint.withValues(alpha: 0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    _showCreateProjectModal(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.mint,
+                    foregroundColor: Colors.black,
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  icon: const Icon(Icons.add, size: 20),
+                  label: const Text('CREATE LIST'),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -687,4 +749,34 @@ class _ProjectsHomeViewState extends State<_ProjectsHomeView> {
       return 'Good Evening $userName  ';
     }
   }
+}
+
+/// Custom painter to create a subtle grid pattern background
+class _GridPatternPainter extends CustomPainter {
+  final Color gridColor;
+
+  _GridPatternPainter(this.gridColor);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    const double gridSize = 20.0;
+
+    // Draw vertical lines
+    for (double x = 0; x <= size.width; x += gridSize) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+
+    // Draw horizontal lines
+    for (double y = 0; y <= size.height; y += gridSize) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

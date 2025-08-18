@@ -18,7 +18,7 @@ import 'features/projects/presentation/pages/projects_home_page.dart';
 import 'features/projects/presentation/bloc/projects_bloc.dart';
 import 'features/floating_panel/presentation/pages/floating_panel_page.dart';
 import 'features/floating_panel/presentation/pages/floating_panel_settings_page.dart';
-
+import 'features/todos/presentation/bloc/todo_actions_bloc.dart';
 import 'features/auth/presentation/widgets/logo_widget.dart';
 import 'features/auth/presentation/pages/splash_page.dart';
 
@@ -60,6 +60,7 @@ class TurboTaskApp extends StatelessWidget {
         BlocProvider(create: (context) => getIt<ProjectsBloc>()),
         BlocProvider(create: (context) => getIt<NoteBloc>()),
         BlocProvider(create: (context) => getIt<KanbanBoardBloc>()),
+        BlocProvider(create: (context) => getIt<TodoActionsBloc>()),
       ],
       child: AnimatedBuilder(
         animation: getIt<ThemeManager>(),

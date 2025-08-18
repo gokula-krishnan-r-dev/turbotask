@@ -71,21 +71,6 @@ class _TaskTimerWidgetState extends State<TaskTimerWidget> {
           children: [
             // Timer display
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color:
-                    (isThisTaskActive || widget.isFirstTask) && isSessionActive
-                    ? AppColors.mint.withOpacity(0.1)
-                    : theme.colorScheme.surfaceVariant.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color:
-                      (isThisTaskActive || widget.isFirstTask) &&
-                          isSessionActive
-                      ? AppColors.mint.withOpacity(0.3)
-                      : theme.colorScheme.outline.withOpacity(0.1),
-                ),
-              ),
               child: Text(
                 _focusModeService.formattedTime.isEmpty
                     ? '00:00'
@@ -97,6 +82,7 @@ class _TaskTimerWidgetState extends State<TaskTimerWidget> {
                           isSessionActive
                       ? AppColors.mint
                       : theme.colorScheme.onSurfaceVariant,
+                  fontSize: 18,
                 ),
               ),
             ),

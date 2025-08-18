@@ -431,7 +431,7 @@ ProjectListResponseModel _$ProjectListResponseModelFromJson(
 mixin _$ProjectListResponseModel {
   bool get success => throw _privateConstructorUsedError;
   String get message => throw _privateConstructorUsedError;
-  List<ProjectModel> get data => throw _privateConstructorUsedError;
+  List<ProjectModel>? get data => throw _privateConstructorUsedError;
   @JsonKey(name: 'total_count')
   int? get totalCount => throw _privateConstructorUsedError;
   @JsonKey(name: 'current_page')
@@ -461,7 +461,7 @@ abstract class $ProjectListResponseModelCopyWith<$Res> {
   $Res call({
     bool success,
     String message,
-    List<ProjectModel> data,
+    List<ProjectModel>? data,
     @JsonKey(name: 'total_count') int? totalCount,
     @JsonKey(name: 'current_page') int? currentPage,
     @JsonKey(name: 'per_page') int? perPage,
@@ -489,7 +489,7 @@ class _$ProjectListResponseModelCopyWithImpl<
   $Res call({
     Object? success = null,
     Object? message = null,
-    Object? data = null,
+    Object? data = freezed,
     Object? totalCount = freezed,
     Object? currentPage = freezed,
     Object? perPage = freezed,
@@ -505,10 +505,10 @@ class _$ProjectListResponseModelCopyWithImpl<
                 ? _value.message
                 : message // ignore: cast_nullable_to_non_nullable
                       as String,
-            data: null == data
+            data: freezed == data
                 ? _value.data
                 : data // ignore: cast_nullable_to_non_nullable
-                      as List<ProjectModel>,
+                      as List<ProjectModel>?,
             totalCount: freezed == totalCount
                 ? _value.totalCount
                 : totalCount // ignore: cast_nullable_to_non_nullable
@@ -543,7 +543,7 @@ abstract class _$$ProjectListResponseModelImplCopyWith<$Res>
   $Res call({
     bool success,
     String message,
-    List<ProjectModel> data,
+    List<ProjectModel>? data,
     @JsonKey(name: 'total_count') int? totalCount,
     @JsonKey(name: 'current_page') int? currentPage,
     @JsonKey(name: 'per_page') int? perPage,
@@ -571,7 +571,7 @@ class __$$ProjectListResponseModelImplCopyWithImpl<$Res>
   $Res call({
     Object? success = null,
     Object? message = null,
-    Object? data = null,
+    Object? data = freezed,
     Object? totalCount = freezed,
     Object? currentPage = freezed,
     Object? perPage = freezed,
@@ -587,10 +587,10 @@ class __$$ProjectListResponseModelImplCopyWithImpl<$Res>
             ? _value.message
             : message // ignore: cast_nullable_to_non_nullable
                   as String,
-        data: null == data
+        data: freezed == data
             ? _value._data
             : data // ignore: cast_nullable_to_non_nullable
-                  as List<ProjectModel>,
+                  as List<ProjectModel>?,
         totalCount: freezed == totalCount
             ? _value.totalCount
             : totalCount // ignore: cast_nullable_to_non_nullable
@@ -618,7 +618,7 @@ class _$ProjectListResponseModelImpl implements _ProjectListResponseModel {
   const _$ProjectListResponseModelImpl({
     required this.success,
     required this.message,
-    required final List<ProjectModel> data,
+    final List<ProjectModel>? data,
     @JsonKey(name: 'total_count') this.totalCount,
     @JsonKey(name: 'current_page') this.currentPage,
     @JsonKey(name: 'per_page') this.perPage,
@@ -632,12 +632,14 @@ class _$ProjectListResponseModelImpl implements _ProjectListResponseModel {
   final bool success;
   @override
   final String message;
-  final List<ProjectModel> _data;
+  final List<ProjectModel>? _data;
   @override
-  List<ProjectModel> get data {
+  List<ProjectModel>? get data {
+    final value = _data;
+    if (value == null) return null;
     if (_data is EqualUnmodifiableListView) return _data;
     // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_data);
+    return EqualUnmodifiableListView(value);
   }
 
   @override
@@ -709,7 +711,7 @@ abstract class _ProjectListResponseModel implements ProjectListResponseModel {
   const factory _ProjectListResponseModel({
     required final bool success,
     required final String message,
-    required final List<ProjectModel> data,
+    final List<ProjectModel>? data,
     @JsonKey(name: 'total_count') final int? totalCount,
     @JsonKey(name: 'current_page') final int? currentPage,
     @JsonKey(name: 'per_page') final int? perPage,
@@ -724,7 +726,7 @@ abstract class _ProjectListResponseModel implements ProjectListResponseModel {
   @override
   String get message;
   @override
-  List<ProjectModel> get data;
+  List<ProjectModel>? get data;
   @override
   @JsonKey(name: 'total_count')
   int? get totalCount;

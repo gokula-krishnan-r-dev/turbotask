@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 
 import '../../features/auth/domain/entities/auth_tokens.dart';
@@ -14,6 +15,10 @@ class ApiService {
 
   final Dio _dio;
   final SecureStorageService _secureStorage;
+
+  // Token refresh concurrency control
+  Completer<bool>? _refreshCompleter;
+  final Set<String> _pendingRequests = {};
 
   ApiService(this._dio, this._secureStorage) {
     _setupDio();
@@ -47,24 +52,47 @@ class ApiService {
           handler.next(options);
         },
         onError: (error, handler) async {
+          final requestKey =
+              '${error.requestOptions.method}_${error.requestOptions.path}';
+
+          // Handle 429 Rate Limit errors
+          if (error.response?.statusCode == 429) {
+            await _handleRateLimit(error, handler, requestKey);
+            return;
+          }
+
           // Handle 401 errors by attempting token refresh
-          if (error.response?.statusCode == 401) {
-            final refreshed = await _refreshToken();
+          if (error.response?.statusCode == 401 &&
+              !error.requestOptions.path.contains('/auth/refresh')) {
+            final refreshed = await _refreshTokenSafely();
             if (refreshed) {
-              // Retry the original request
-              final clonedRequest = await _dio.request(
-                error.requestOptions.path,
-                options: Options(
+              try {
+                // Clone and retry the original request with new token
+                final newToken = await getAccessToken();
+                final clonedOptions = Options(
                   method: error.requestOptions.method,
-                  headers: error.requestOptions.headers,
-                ),
-                data: error.requestOptions.data,
-                queryParameters: error.requestOptions.queryParameters,
-              );
-              handler.resolve(clonedRequest);
-              return;
+                  headers: {
+                    ...error.requestOptions.headers,
+                    'Authorization': 'Bearer $newToken',
+                  },
+                );
+
+                final clonedRequest = await _dio.request(
+                  error.requestOptions.path,
+                  options: clonedOptions,
+                  data: error.requestOptions.data,
+                  queryParameters: error.requestOptions.queryParameters,
+                );
+                handler.resolve(clonedRequest);
+                return;
+              } catch (retryError) {
+                // If retry fails, clear tokens and continue with original error
+                await clearTokens();
+              }
             }
           }
+
+          _pendingRequests.remove(requestKey);
           handler.next(error);
         },
       ),
@@ -257,20 +285,90 @@ class ApiService {
     return null;
   }
 
-  /// Refresh access token using refresh token
-  Future<bool> _refreshToken() async {
+  /// Handle rate limit errors with exponential backoff
+  Future<void> _handleRateLimit(
+    DioException error,
+    ErrorInterceptorHandler handler,
+    String requestKey,
+  ) async {
+    if (_pendingRequests.contains(requestKey)) {
+      handler.next(error);
+      return;
+    }
+
+    final retryAfterHeader = error.response?.headers.value('x-ratelimit-reset');
+    int retryAfter = 60; // Default 60 seconds
+
+    if (retryAfterHeader != null) {
+      try {
+        final resetTime = int.parse(retryAfterHeader);
+        final currentTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        retryAfter = (resetTime - currentTime).clamp(1, 300); // Max 5 minutes
+      } catch (_) {
+        // Use default if parsing fails
+      }
+    }
+
+    _pendingRequests.add(requestKey);
+
+    // Wait for rate limit to reset
+    await Future.delayed(Duration(seconds: retryAfter));
+
+    try {
+      // Retry the request
+      final clonedRequest = await _dio.request(
+        error.requestOptions.path,
+        options: Options(
+          method: error.requestOptions.method,
+          headers: error.requestOptions.headers,
+        ),
+        data: error.requestOptions.data,
+        queryParameters: error.requestOptions.queryParameters,
+      );
+      _pendingRequests.remove(requestKey);
+      handler.resolve(clonedRequest);
+    } catch (retryError) {
+      _pendingRequests.remove(requestKey);
+      handler.next(error);
+    }
+  }
+
+  /// Thread-safe token refresh mechanism with circuit breaker
+  Future<bool> _refreshTokenSafely() async {
+    // If a refresh is already in progress, wait for it
+    if (_refreshCompleter != null) {
+      return await _refreshCompleter!.future;
+    }
+
+    // Start new refresh process
+    _refreshCompleter = Completer<bool>();
+
     try {
       final refreshToken = await getRefreshToken();
-      if (refreshToken == null) return false;
+      if (refreshToken == null) {
+        _refreshCompleter!.complete(false);
+        return false;
+      }
 
-      final response = await _dio.post(
+      // Create a separate Dio instance for refresh to avoid interceptor loops
+      final refreshDio = Dio();
+      refreshDio.options = BaseOptions(
+        baseUrl: _baseUrl,
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+      );
+
+      final response = await refreshDio.post(
         '/api/v1/auth/refresh',
         data: {'refresh_token': refreshToken},
         options: Options(headers: {'Authorization': 'Bearer $refreshToken'}),
       );
 
       if (response.statusCode == 200) {
-        final data = response.data as Map<String, dynamic>;
+        final responseData = response.data;
+        final data = responseData is Map<String, dynamic>
+            ? responseData['data'] ?? responseData
+            : responseData;
         final newAccessToken = data['access_token'] as String?;
         final newRefreshToken = data['refresh_token'] as String?;
 
@@ -280,12 +378,31 @@ class ApiService {
         if (newRefreshToken != null) {
           await setRefreshToken(newRefreshToken);
         }
+
+        _refreshCompleter!.complete(true);
         return true;
       }
+
+      _refreshCompleter!.complete(false);
       return false;
     } catch (e) {
-      await clearTokens();
+      print('Token refresh failed: $e');
+
+      // Handle rate limiting in refresh
+      if (e.toString().contains('429')) {
+        print('Token refresh rate limited - backing off');
+        await Future.delayed(const Duration(seconds: 60));
+      }
+
+      // Clear tokens only if it's not a rate limit error
+      if (!e.toString().contains('429')) {
+        await clearTokens();
+      }
+
+      _refreshCompleter!.complete(false);
       return false;
+    } finally {
+      _refreshCompleter = null;
     }
   }
 

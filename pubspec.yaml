@@ -56,6 +56,10 @@ dependencies:
   window_manager: ^0.3.9
   screen_retriever: ^0.1.9
   auto_size_text: ^3.0.0
+  
+  # Focus toast plugin
+  focus_toast_plugin:
+    path: ./focus_toast_plugin
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

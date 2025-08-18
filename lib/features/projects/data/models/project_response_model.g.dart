@@ -45,8 +45,8 @@ _$ProjectListResponseModelImpl _$$ProjectListResponseModelImplFromJson(
 ) => _$ProjectListResponseModelImpl(
   success: json['success'] as bool,
   message: json['message'] as String,
-  data: (json['data'] as List<dynamic>)
-      .map((e) => ProjectModel.fromJson(e as Map<String, dynamic>))
+  data: (json['data'] as List<dynamic>?)
+      ?.map((e) => ProjectModel.fromJson(e as Map<String, dynamic>))
       .toList(),
   totalCount: (json['total_count'] as num?)?.toInt(),
   currentPage: (json['current_page'] as num?)?.toInt(),
