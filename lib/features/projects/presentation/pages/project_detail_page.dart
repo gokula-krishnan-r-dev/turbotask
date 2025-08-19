@@ -48,36 +48,61 @@ class _ProjectDetailView extends StatefulWidget {
 class _ProjectDetailViewState extends State<_ProjectDetailView> {
   Todo? _selectedTask;
   bool _isSidebarVisible = false;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: Column(
+      body: Row(
         children: [
-          // Header
-          _buildHeader(context, theme),
-
-          // Kanban Board
+          // Main content
           Expanded(
-            child: BlocBuilder<KanbanBoardBloc, KanbanBoardState>(
-              builder: (context, state) {
-                if (state is KanbanBoardLoading) {
-                  return _buildLoadingState(
-                    theme,
-                    previousBoard: state.previousBoard,
-                  );
-                } else if (state is KanbanBoardLoaded) {
-                  return _buildKanbanBoard(context, theme, state.kanbanBoard);
-                } else if (state is KanbanBoardError) {
-                  return _buildErrorState(context, theme, state.message);
-                } else {
-                  return _buildInitialState(theme);
-                }
-              },
+            child: Column(
+              children: [
+                // Header
+                _buildHeader(context, theme),
+
+                // Kanban Board
+                Expanded(
+                  child: BlocBuilder<KanbanBoardBloc, KanbanBoardState>(
+                    builder: (context, state) {
+                      if (state is KanbanBoardLoading) {
+                        return _buildLoadingState(
+                          theme,
+                          previousBoard: state.previousBoard,
+                        );
+                      } else if (state is KanbanBoardLoaded) {
+                        return _buildKanbanBoard(
+                          context,
+                          theme,
+                          state.kanbanBoard,
+                        );
+                      } else if (state is KanbanBoardError) {
+                        return _buildErrorState(context, theme, state.message);
+                      } else {
+                        return _buildInitialState(theme);
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
+
+          // Task detail sidebar
+          if (_isSidebarVisible && _selectedTask != null)
+            TaskDetailSidebar(
+              task: _selectedTask!,
+              onClose: () {
+                setState(() {
+                  _isSidebarVisible = false;
+                  _selectedTask = null;
+                });
+              },
+              onRefresh: () => _refreshKanbanBoard(),
+            ),
         ],
       ),
     );
@@ -524,8 +549,10 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
   }
 
   void _onTaskTap(Todo task) {
-    // TODO: Navigate to task detail
-    print('Task tapped: ${task.taskName}');
+    setState(() {
+      _selectedTask = task;
+      _isSidebarVisible = true;
+    });
   }
 
   void _onTaskEdit(Todo task) {
