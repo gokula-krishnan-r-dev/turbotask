@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/inline_edit_text.dart';
+import '../../data/datasources/subtask_remote_datasource.dart';
+import '../../data/models/subtask_request_models.dart';
 import '../../domain/entities/subtask.dart';
 import '../../domain/entities/todo.dart';
 import '../bloc/subtask_bloc.dart';
 
-class SubtaskItemWidget extends StatelessWidget {
+class SubtaskItemWidget extends StatefulWidget {
   const SubtaskItemWidget({
     super.key,
     required this.subtask,
@@ -21,15 +25,101 @@ class SubtaskItemWidget extends StatelessWidget {
   final bool showActions;
 
   @override
+  State<SubtaskItemWidget> createState() => _SubtaskItemWidgetState();
+}
+
+class _SubtaskItemWidgetState extends State<SubtaskItemWidget> {
+  late final SubtaskRemoteDataSource _subtaskDataSource;
+  bool _isUpdatingName = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _subtaskDataSource = getIt<SubtaskRemoteDataSource>();
+  }
+
+  Future<bool> _updateSubtaskName(String newName) async {
+    if (newName.trim().isEmpty) {
+      return false;
+    }
+
+    setState(() {
+      _isUpdatingName = true;
+    });
+
+    try {
+      final request = UpdateSubtaskRequest(name: newName.trim());
+      await _subtaskDataSource.updateSubtask(widget.subtask.id, request);
+
+      setState(() {
+        _isUpdatingName = false;
+      });
+
+      // Show success feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: AppColors.mint, size: 16),
+                const SizedBox(width: 8),
+                const Text('Subtask name updated successfully'),
+              ],
+            ),
+            duration: const Duration(milliseconds: 1500),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.green.shade600,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+
+        // Trigger refresh to show updated data
+        context.read<SubtaskBloc>().add(RefreshSubtasks(widget.subtask.todoId));
+      }
+
+      return true;
+    } catch (e) {
+      setState(() {
+        _isUpdatingName = false;
+      });
+
+      // Show error feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Text('Failed to update subtask: ${e.toString()}'),
+              ],
+            ),
+            duration: const Duration(milliseconds: 3000),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red.shade600,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+
+      return false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isCompleted = subtask.isCompleted;
+    final isCompleted = widget.subtask.isCompleted;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),
       child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
+        onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -51,7 +141,7 @@ class SubtaskItemWidget extends StatelessWidget {
               GestureDetector(
                 onTap: () {
                   context.read<SubtaskBloc>().add(
-                    ToggleSubtaskStatus(subtask.id),
+                    ToggleSubtaskStatus(widget.subtask.id),
                   );
                 },
                 child: Container(
@@ -85,8 +175,9 @@ class SubtaskItemWidget extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: Text(
-                            subtask.name,
+                          child: InlineEditText(
+                            text: widget.subtask.name,
+                            onSave: _updateSubtaskName,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               decoration: isCompleted
                                   ? TextDecoration.lineThrough
@@ -98,12 +189,24 @@ class SubtaskItemWidget extends StatelessWidget {
                               fontWeight: FontWeight.w500,
                             ),
                             maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            isLoading: _isUpdatingName,
+                            enabled:
+                                !isCompleted, // Disable editing for completed subtasks
+                            placeholder: 'Enter subtask name...',
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Subtask name cannot be empty';
+                              }
+                              if (value.trim().length > 255) {
+                                return 'Subtask name is too long (max 255 characters)';
+                              }
+                              return null;
+                            },
                           ),
                         ),
 
                         // AI-generated indicator
-                        if (subtask.aiGenerated) ...[
+                        if (widget.subtask.aiGenerated) ...[
                           const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -143,10 +246,10 @@ class SubtaskItemWidget extends StatelessWidget {
                     ),
 
                     // Subtask description (if available)
-                    if (subtask.description?.isNotEmpty == true) ...[
+                    if (widget.subtask.description?.isNotEmpty == true) ...[
                       const SizedBox(height: 2),
                       Text(
-                        subtask.description!,
+                        widget.subtask.description!,
                         style: theme.textTheme.bodySmall?.copyWith(
                           decoration: isCompleted
                               ? TextDecoration.lineThrough
@@ -161,14 +264,14 @@ class SubtaskItemWidget extends StatelessWidget {
                     ],
 
                     // Priority, status, and AI indicators
-                    if (subtask.priority != Priority.medium ||
-                        subtask.dueDate != null ||
-                        subtask.aiEstimatedDuration != null) ...[
+                    if (widget.subtask.priority != Priority.medium ||
+                        widget.subtask.dueDate != null ||
+                        widget.subtask.aiEstimatedDuration != null) ...[
                       const SizedBox(height: 4),
                       Row(
                         children: [
                           // Priority indicator
-                          if (subtask.priority != Priority.medium) ...[
+                          if (widget.subtask.priority != Priority.medium) ...[
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 6,
@@ -176,14 +279,16 @@ class SubtaskItemWidget extends StatelessWidget {
                               ),
                               decoration: BoxDecoration(
                                 color: _getPriorityColor(
-                                  subtask.priority,
+                                  widget.subtask.priority,
                                 ).withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                subtask.priority.displayName,
+                                widget.subtask.priority.displayName,
                                 style: theme.textTheme.labelSmall?.copyWith(
-                                  color: _getPriorityColor(subtask.priority),
+                                  color: _getPriorityColor(
+                                    widget.subtask.priority,
+                                  ),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -192,20 +297,20 @@ class SubtaskItemWidget extends StatelessWidget {
                           ],
 
                           // Due date indicator
-                          if (subtask.dueDate != null) ...[
+                          if (widget.subtask.dueDate != null) ...[
                             Icon(
                               Icons.schedule,
                               size: 12,
-                              color: subtask.isOverdue
+                              color: widget.subtask.isOverdue
                                   ? AppColors.error
                                   : theme.textTheme.bodySmall?.color
                                         ?.withOpacity(0.6),
                             ),
                             const SizedBox(width: 2),
                             Text(
-                              _formatDueDate(subtask.dueDate!),
+                              _formatDueDate(widget.subtask.dueDate!),
                               style: theme.textTheme.labelSmall?.copyWith(
-                                color: subtask.isOverdue
+                                color: widget.subtask.isOverdue
                                     ? AppColors.error
                                     : theme.textTheme.bodySmall?.color
                                           ?.withOpacity(0.6),
@@ -215,7 +320,7 @@ class SubtaskItemWidget extends StatelessWidget {
                           ],
 
                           // AI estimated duration indicator
-                          if (subtask.aiEstimatedDuration != null) ...[
+                          if (widget.subtask.aiEstimatedDuration != null) ...[
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 4,
@@ -235,7 +340,7 @@ class SubtaskItemWidget extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 2),
                                   Text(
-                                    '${subtask.aiEstimatedDuration}m',
+                                    '${widget.subtask.aiEstimatedDuration}m',
                                     style: theme.textTheme.labelSmall?.copyWith(
                                       color: Colors.purple,
                                       fontSize: 9,
@@ -254,7 +359,7 @@ class SubtaskItemWidget extends StatelessWidget {
               ),
 
               // Action menu (if enabled)
-              if (showActions) ...[
+              if (widget.showActions) ...[
                 const SizedBox(width: 8),
                 PopupMenuButton<String>(
                   onSelected: (value) {
@@ -338,9 +443,9 @@ class SubtaskItemWidget extends StatelessWidget {
   }
 
   void _showEditDialog(BuildContext context) {
-    final nameController = TextEditingController(text: subtask.name);
+    final nameController = TextEditingController(text: widget.subtask.name);
     final descController = TextEditingController(
-      text: subtask.description ?? '',
+      text: widget.subtask.description ?? '',
     );
 
     showDialog(
@@ -379,7 +484,7 @@ class SubtaskItemWidget extends StatelessWidget {
               if (nameController.text.trim().isNotEmpty) {
                 context.read<SubtaskBloc>().add(
                   UpdateSubtask(
-                    subtaskId: subtask.id,
+                    subtaskId: widget.subtask.id,
                     name: nameController.text.trim(),
                     description: descController.text.trim().isNotEmpty
                         ? descController.text.trim()
@@ -401,7 +506,9 @@ class SubtaskItemWidget extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Subtask'),
-        content: Text('Are you sure you want to delete "${subtask.name}"?'),
+        content: Text(
+          'Are you sure you want to delete "${widget.subtask.name}"?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
@@ -409,7 +516,7 @@ class SubtaskItemWidget extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () {
-              context.read<SubtaskBloc>().add(DeleteSubtask(subtask.id));
+              context.read<SubtaskBloc>().add(DeleteSubtask(widget.subtask.id));
               Navigator.of(dialogContext).pop();
             },
             style: ElevatedButton.styleFrom(

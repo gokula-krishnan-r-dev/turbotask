@@ -13,6 +13,7 @@ abstract class TodoActionsRemoteDataSource {
   Future<void> pauseTodo(String todoId);
   Future<Todo> skipTodo(String todoId);
   Future<bool> getActiveBreakStatus(String todoId);
+  Future<Todo> updateTodo(String todoId, UpdateTodoRequest request);
 }
 
 @Injectable(as: TodoActionsRemoteDataSource)
@@ -159,6 +160,31 @@ class TodoActionsRemoteDataSourceImpl implements TodoActionsRemoteDataSource {
       return false;
     } catch (e) {
       return false;
+    }
+  }
+
+  @override
+  Future<Todo> updateTodo(String todoId, UpdateTodoRequest request) async {
+    try {
+      final response = await _apiService.put(
+        '/api/v1/todo/todos/$todoId',
+        data: request.toJson(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data['data'] ?? response.data;
+        return Todo.fromJson(data['todo'] ?? data);
+      } else {
+        throw Exception('Failed to update todo: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e.toString().contains('400') || e.toString().contains('Invalid')) {
+        throw Exception('Invalid todo data');
+      } else if (e.toString().contains('404') ||
+          e.toString().contains('not found')) {
+        throw Exception('Todo not found');
+      }
+      throw Exception('Network error while updating todo: $e');
     }
   }
 }

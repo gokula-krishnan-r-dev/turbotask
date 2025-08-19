@@ -7,6 +7,9 @@ import 'package:turbotask/features/todos/presentation/widgets/subtask_list_widge
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/inline_edit_text.dart';
+import '../../../todos/data/datasources/todo_actions_remote_datasource.dart';
+import '../../../todos/data/models/todo_action_request_models.dart';
 import '../../../todos/domain/entities/note.dart';
 import '../../../todos/domain/entities/todo.dart';
 import '../../../todos/presentation/bloc/note_bloc.dart';
@@ -22,12 +25,16 @@ class TaskCardWidget extends StatefulWidget {
     this.onTap,
     this.onEdit,
     this.onDelete,
+    this.projectId,
+    this.onRefresh,
   });
 
   final Todo task;
   final VoidCallback? onTap;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final String? projectId;
+  final VoidCallback? onRefresh;
 
   @override
   State<TaskCardWidget> createState() => _TaskCardWidgetState();
@@ -36,6 +43,91 @@ class TaskCardWidget extends StatefulWidget {
 class _TaskCardWidgetState extends State<TaskCardWidget> {
   bool _isSubtasksExpanded = false;
   bool _isSubtasksVisible = false;
+  late final TodoActionsRemoteDataSource _todoActionsDataSource;
+  bool _isUpdatingTitle = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _todoActionsDataSource = getIt<TodoActionsRemoteDataSource>();
+  }
+
+  Future<bool> _updateTaskTitle(String newTitle) async {
+    if (newTitle.trim().isEmpty) {
+      return false;
+    }
+
+    setState(() {
+      _isUpdatingTitle = true;
+    });
+
+    try {
+      final request = UpdateTodoRequest(taskName: newTitle.trim());
+      await _todoActionsDataSource.updateTodo(widget.task.id, request);
+
+      // Optionally update local state or trigger a refresh
+      // This would depend on your state management approach
+
+      setState(() {
+        _isUpdatingTitle = false;
+      });
+
+      // Show success feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: AppColors.mint, size: 16),
+                const SizedBox(width: 8),
+                const Text('Task title updated successfully'),
+              ],
+            ),
+            duration: const Duration(milliseconds: 1500),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.green.shade600,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+
+        // Trigger refresh to show updated data
+        if (widget.onRefresh != null) {
+          widget.onRefresh!();
+        }
+      }
+
+      return true;
+    } catch (e) {
+      setState(() {
+        _isUpdatingTitle = false;
+      });
+
+      // Show error feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Text('Failed to update title: ${e.toString()}'),
+              ],
+            ),
+            duration: const Duration(milliseconds: 3000),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red.shade600,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+
+      return false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,13 +171,24 @@ class _TaskCardWidgetState extends State<TaskCardWidget> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.task.taskName,
+                          InlineEditText(
+                            text: widget.task.taskName,
+                            onSave: _updateTaskTitle,
                             style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                             maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            isLoading: _isUpdatingTitle,
+                            placeholder: 'Enter task name...',
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Task name cannot be empty';
+                              }
+                              if (value.trim().length > 255) {
+                                return 'Task name is too long (max 255 characters)';
+                              }
+                              return null;
+                            },
                           ),
 
                           // AI-enhanced indicator

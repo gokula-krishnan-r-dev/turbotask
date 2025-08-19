@@ -1,4 +1,75 @@
 /// Request models for todo actions
+
+/// Request model for updating a todo
+class UpdateTodoRequest {
+  const UpdateTodoRequest({
+    this.taskName,
+    this.taskDescription,
+    this.taskImageOrEmoji,
+    this.statusIcon,
+    this.estimatedTime,
+    this.actualTime,
+    this.priority,
+    this.status,
+    this.dueDate,
+    this.startDate,
+    this.tags,
+    this.difficultyRating,
+    this.energyLevelRequired,
+    this.location,
+    this.context,
+    this.assignedTo,
+    this.isRecurring,
+    this.isPinned,
+  });
+
+  final String? taskName;
+  final String? taskDescription;
+  final String? taskImageOrEmoji;
+  final String? statusIcon;
+  final int? estimatedTime;
+  final int? actualTime;
+  final String? priority;
+  final String? status;
+  final DateTime? dueDate;
+  final DateTime? startDate;
+  final List<String>? tags;
+  final int? difficultyRating;
+  final int? energyLevelRequired;
+  final String? location;
+  final String? context;
+  final String? assignedTo;
+  final bool? isRecurring;
+  final bool? isPinned;
+
+  Map<String, dynamic> toJson() {
+    final json = <String, dynamic>{};
+
+    if (taskName != null) json['task_name'] = taskName;
+    if (taskDescription != null) json['task_description'] = taskDescription;
+    if (taskImageOrEmoji != null)
+      json['task_image_or_emoji'] = taskImageOrEmoji;
+    if (statusIcon != null) json['status_icon'] = statusIcon;
+    if (estimatedTime != null) json['estimated_time'] = estimatedTime;
+    if (actualTime != null) json['actual_time'] = actualTime;
+    if (priority != null) json['priority'] = priority;
+    if (status != null) json['status'] = status;
+    if (dueDate != null) json['due_date'] = dueDate!.toIso8601String();
+    if (startDate != null) json['start_date'] = startDate!.toIso8601String();
+    if (tags != null) json['tags'] = tags;
+    if (difficultyRating != null) json['difficulty_rating'] = difficultyRating;
+    if (energyLevelRequired != null)
+      json['energy_level_required'] = energyLevelRequired;
+    if (location != null) json['location'] = location;
+    if (context != null) json['context'] = context;
+    if (assignedTo != null) json['assigned_to'] = assignedTo;
+    if (isRecurring != null) json['is_recurring'] = isRecurring;
+    if (isPinned != null) json['is_pinned'] = isPinned;
+
+    return json;
+  }
+}
+
 class StartBreakRequest {
   final String todoId;
   final String? projectId;

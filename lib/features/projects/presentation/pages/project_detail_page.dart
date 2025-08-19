@@ -338,6 +338,8 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
                               onTap: () => _onTaskTap(todo),
                               onEdit: () => _onTaskEdit(todo),
                               onDelete: () => _onTaskDelete(todo),
+                              projectId: widget.project.id,
+                              onRefresh: () => _refreshKanbanBoard(),
                             ),
                           ),
                         ),
@@ -358,6 +360,8 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
                           onTap: () => _onTaskTap(todo),
                           onEdit: () => _onTaskEdit(todo),
                           onDelete: () => _onTaskDelete(todo),
+                          projectId: widget.project.id,
+                          onRefresh: () => _refreshKanbanBoard(),
                         ),
                       );
                     },
@@ -584,6 +588,10 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
         ),
       );
     }
+  }
+
+  void _refreshKanbanBoard() {
+    context.read<KanbanBoardBloc>().add(RefreshKanbanBoard(widget.project.id));
   }
 }
 
