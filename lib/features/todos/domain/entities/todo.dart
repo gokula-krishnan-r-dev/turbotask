@@ -36,6 +36,17 @@ class Todo {
     this.projectTitle,
     this.releaseVersionId,
     this.parentTodoId,
+
+    // AI Enhancement fields
+    this.aiEnhanced = false,
+    this.aiGeneratedDescription = false,
+    this.taskEmoji,
+    this.aiCategory,
+    this.aiPriority,
+    this.aiEstimatedDuration,
+    this.aiEnhancementVersion = 0,
+    this.aiSubtaskCount = 0,
+    this.acceptedSuggestions = 0,
   });
 
   final String id;
@@ -72,6 +83,17 @@ class Todo {
   final String? projectTitle;
   final String? releaseVersionId;
   final String? parentTodoId;
+
+  // AI Enhancement fields
+  final bool aiEnhanced;
+  final bool aiGeneratedDescription;
+  final String? taskEmoji;
+  final String? aiCategory;
+  final String? aiPriority;
+  final int? aiEstimatedDuration;
+  final int aiEnhancementVersion;
+  final int aiSubtaskCount;
+  final int acceptedSuggestions;
 
   /// Check if todo is completed
   bool get isCompleted =>
@@ -128,6 +150,17 @@ class Todo {
     String? projectTitle,
     String? releaseVersionId,
     String? parentTodoId,
+
+    // AI Enhancement fields
+    bool? aiEnhanced,
+    bool? aiGeneratedDescription,
+    String? taskEmoji,
+    String? aiCategory,
+    String? aiPriority,
+    int? aiEstimatedDuration,
+    int? aiEnhancementVersion,
+    int? aiSubtaskCount,
+    int? acceptedSuggestions,
   }) {
     return Todo(
       id: id ?? this.id,
@@ -164,6 +197,18 @@ class Todo {
       projectTitle: projectTitle ?? this.projectTitle,
       releaseVersionId: releaseVersionId ?? this.releaseVersionId,
       parentTodoId: parentTodoId ?? this.parentTodoId,
+
+      // AI Enhancement fields
+      aiEnhanced: aiEnhanced ?? this.aiEnhanced,
+      aiGeneratedDescription:
+          aiGeneratedDescription ?? this.aiGeneratedDescription,
+      taskEmoji: taskEmoji ?? this.taskEmoji,
+      aiCategory: aiCategory ?? this.aiCategory,
+      aiPriority: aiPriority ?? this.aiPriority,
+      aiEstimatedDuration: aiEstimatedDuration ?? this.aiEstimatedDuration,
+      aiEnhancementVersion: aiEnhancementVersion ?? this.aiEnhancementVersion,
+      aiSubtaskCount: aiSubtaskCount ?? this.aiSubtaskCount,
+      acceptedSuggestions: acceptedSuggestions ?? this.acceptedSuggestions,
     );
   }
 
@@ -202,6 +247,17 @@ class Todo {
     projectTitle,
     releaseVersionId,
     parentTodoId,
+
+    // AI Enhancement fields
+    aiEnhanced,
+    aiGeneratedDescription,
+    taskEmoji,
+    aiCategory,
+    aiPriority,
+    aiEstimatedDuration,
+    aiEnhancementVersion,
+    aiSubtaskCount,
+    acceptedSuggestions,
   ];
 
   @override
@@ -251,6 +307,17 @@ class Todo {
       projectTitle: json['project_title'],
       releaseVersionId: json['release_version_id'],
       parentTodoId: json['parent_todo_id'],
+
+      // AI Enhancement fields
+      aiEnhanced: json['ai_enhanced'] ?? false,
+      aiGeneratedDescription: json['ai_generated_description'] ?? false,
+      taskEmoji: json['task_emoji'],
+      aiCategory: json['ai_category'],
+      aiPriority: json['ai_priority'],
+      aiEstimatedDuration: json['ai_estimated_duration'],
+      aiEnhancementVersion: json['ai_enhancement_version'] ?? 0,
+      aiSubtaskCount: json['ai_subtask_count'] ?? 0,
+      acceptedSuggestions: json['accepted_suggestions'] ?? 0,
     );
   }
 }

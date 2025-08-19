@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:turbotask/features/reports/presentation/pages/reports_page.dart';
 
 import '../../../../core/auth/auth_bloc.dart';
 import '../../../../core/auth/auth_state.dart';
@@ -299,6 +300,26 @@ class _ProjectsHomeViewState extends State<_ProjectsHomeView> {
         ),
 
         const Spacer(),
+
+        //add a button for report navigation
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: FilledButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const ReportsPage()),
+              );
+            },
+            icon: const Icon(Icons.bar_chart),
+            label: const Text('Reports'),
+          ),
+        ),
 
         // User profile and settings
         Container(

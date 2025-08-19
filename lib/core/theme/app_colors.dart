@@ -26,7 +26,7 @@ class AppColors {
   static const Color mint = Color(0xFF8DE0C8);
   static const Color teal = Color(0xFF3AC3B6);
   static const Color softGreen = Color(0xFFBDE08C);
-  
+
   // Additional UI colors
   static const Color blue = Color(0xFF3B82F6);
   static const Color orange = Color(0xFFF97316);
@@ -37,6 +37,11 @@ class AppColors {
   static const Color warning = Color(0xFFF59E0B);
   static const Color error = Color(0xFFEF4444);
   static const Color info = Color(0xFF3B82F6);
+  static const Color primary = blue;
+
+  // UI colors
+  static const Color background = Color(0xFFF9FAFB);
+  static const Color border = Color(0xFFE5E7EB);
 
   // Text colors for light theme
   static const Color textPrimary = Color(0xFF111827);

@@ -64,24 +64,82 @@ class _TaskCardWidgetState extends State<TaskCardWidget> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // AI emoji if available
+                    if (widget.task.taskEmoji != null &&
+                        widget.task.taskEmoji!.isNotEmpty) ...[
+                      Text(
+                        widget.task.taskEmoji!,
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+
                     // Task title
                     Expanded(
-                      child: Text(
-                        widget.task.taskName,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.task.taskName,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+
+                          // AI-enhanced indicator
+                          if (widget.task.aiEnhanced) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.auto_awesome,
+                                  size: 12,
+                                  color: AppColors.mint,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'AI Enhanced',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: AppColors.mint,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
                       ),
                     ),
 
                     const Spacer(),
 
-                    //add a button with only icon subtask use svg
+                    // Action buttons
                     Row(
                       children: [
-                        //add a button with only icon subtask use svg
+                        // AI regeneration button for AI-enhanced tasks
+                        if (widget.task.aiEnhanced) ...[
+                          GestureDetector(
+                            onTap: () => _showAIOptions(context),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: AppColors.mint.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Icon(
+                                Icons.psychology,
+                                size: 14,
+                                color: AppColors.mint,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+
+                        // Subtask button
                         GestureDetector(
                           onTap: () {
                             setState(() {
@@ -99,7 +157,7 @@ class _TaskCardWidgetState extends State<TaskCardWidget> {
 
                         const SizedBox(width: 8),
 
-                        //add a button for note
+                        // Notes button
                         GestureDetector(
                           onTap: () => _openNotesList(context),
                           child: Icon(
@@ -225,6 +283,147 @@ class _TaskCardWidgetState extends State<TaskCardWidget> {
             child: _NoteModalContent(todoId: widget.task.id),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showAIOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(Icons.psychology, color: AppColors.mint, size: 24),
+                const SizedBox(width: 12),
+                Text(
+                  'AI Assistance',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // AI Options
+            _AIOptionTile(
+              icon: Icons.refresh,
+              title: 'Regenerate Enhancements',
+              subtitle: 'Get fresh AI suggestions for this task',
+              onTap: () {
+                Navigator.pop(context);
+                _regenerateAIEnhancements();
+              },
+            ),
+
+            _AIOptionTile(
+              icon: Icons.edit,
+              title: 'Improve Description',
+              subtitle: 'Enhance task description with AI',
+              onTap: () {
+                Navigator.pop(context);
+                _improveDescription();
+              },
+            ),
+
+            _AIOptionTile(
+              icon: Icons.list_alt,
+              title: 'Refine Subtasks',
+              subtitle: 'Get better subtask suggestions',
+              onTap: () {
+                Navigator.pop(context);
+                _refineSubtasks();
+              },
+            ),
+
+            _AIOptionTile(
+              icon: Icons.analytics,
+              title: 'AI Insights',
+              subtitle: 'View AI analysis and suggestions',
+              onTap: () {
+                Navigator.pop(context);
+                _showAIInsights();
+              },
+            ),
+
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _regenerateAIEnhancements() {
+    // TODO: Implement AI regeneration
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.auto_awesome, color: AppColors.mint, size: 16),
+            const SizedBox(width: 8),
+            const Text('Regenerating AI enhancements...'),
+          ],
+        ),
+        backgroundColor: AppColors.mint.withOpacity(0.8),
+      ),
+    );
+  }
+
+  void _improveDescription() {
+    // TODO: Implement description improvement
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.edit, color: AppColors.mint, size: 16),
+            const SizedBox(width: 8),
+            const Text('Improving description with AI...'),
+          ],
+        ),
+        backgroundColor: AppColors.mint.withOpacity(0.8),
+      ),
+    );
+  }
+
+  void _refineSubtasks() {
+    // TODO: Implement subtask refinement
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.list_alt, color: AppColors.mint, size: 16),
+            const SizedBox(width: 8),
+            const Text('Refining subtasks with AI...'),
+          ],
+        ),
+        backgroundColor: AppColors.mint.withOpacity(0.8),
+      ),
+    );
+  }
+
+  void _showAIInsights() {
+    // TODO: Implement AI insights
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.analytics, color: AppColors.mint, size: 16),
+            const SizedBox(width: 8),
+            const Text('AI insights coming soon...'),
+          ],
+        ),
+        backgroundColor: AppColors.mint.withOpacity(0.8),
       ),
     );
   }
@@ -626,5 +825,84 @@ class _NoteCard extends StatelessWidget {
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
+  }
+}
+
+/// AI Option Tile widget for AI assistance options
+class _AIOptionTile extends StatelessWidget {
+  const _AIOptionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.mint.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.mint.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.mint.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: AppColors.mint, size: 20),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.textTheme.bodySmall?.color?.withOpacity(
+                          0.7,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: theme.iconTheme.color?.withOpacity(0.4),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

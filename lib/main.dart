@@ -21,6 +21,7 @@ import 'features/floating_panel/presentation/pages/floating_panel_settings_page.
 import 'features/todos/presentation/bloc/todo_actions_bloc.dart';
 import 'features/auth/presentation/widgets/logo_widget.dart';
 import 'features/auth/presentation/pages/splash_page.dart';
+import 'features/reports/presentation/pages/reports_page.dart';
 
 /// Main entry point of the TurboTask application.
 /// Initializes dependency injection and runs the app.
@@ -92,6 +93,7 @@ class TurboTaskApp extends StatelessWidget {
               '/login': (context) => const LoginPage(),
               '/home': (context) => const ProjectsHomePage(),
               '/projects': (context) => const ProjectsHomePage(),
+              '/reports': (context) => const ReportsPage(),
               '/floating-panel': (context) => const FloatingPanelPage(),
               '/floating-panel-settings': (context) =>
                   const FloatingPanelSettingsPage(),

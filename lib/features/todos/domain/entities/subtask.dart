@@ -16,6 +16,9 @@ class Subtask extends Equatable {
     this.completedAt,
     this.sortOrder = 0,
     this.isArchived = false,
+    this.aiGenerated = false,
+    this.aiEstimatedDuration,
+    this.aiMetadata,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -32,6 +35,9 @@ class Subtask extends Equatable {
   final DateTime? completedAt;
   final int sortOrder;
   final bool isArchived;
+  final bool aiGenerated;
+  final int? aiEstimatedDuration;
+  final Map<String, dynamic>? aiMetadata;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -59,6 +65,9 @@ class Subtask extends Equatable {
     DateTime? completedAt,
     int? sortOrder,
     bool? isArchived,
+    bool? aiGenerated,
+    int? aiEstimatedDuration,
+    Map<String, dynamic>? aiMetadata,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -75,6 +84,9 @@ class Subtask extends Equatable {
       completedAt: completedAt ?? this.completedAt,
       sortOrder: sortOrder ?? this.sortOrder,
       isArchived: isArchived ?? this.isArchived,
+      aiGenerated: aiGenerated ?? this.aiGenerated,
+      aiEstimatedDuration: aiEstimatedDuration ?? this.aiEstimatedDuration,
+      aiMetadata: aiMetadata ?? this.aiMetadata,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -94,6 +106,9 @@ class Subtask extends Equatable {
     completedAt,
     sortOrder,
     isArchived,
+    aiGenerated,
+    aiEstimatedDuration,
+    aiMetadata,
     createdAt,
     updatedAt,
   ];
@@ -122,6 +137,11 @@ class Subtask extends Equatable {
           : null,
       sortOrder: json['sort_order'] ?? 0,
       isArchived: json['is_archived'] ?? false,
+      aiGenerated: json['ai_generated'] ?? false,
+      aiEstimatedDuration: json['ai_estimated_duration'],
+      aiMetadata: json['ai_metadata'] != null
+          ? Map<String, dynamic>.from(json['ai_metadata'])
+          : null,
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),
     );
@@ -142,6 +162,9 @@ class Subtask extends Equatable {
       'completed_at': completedAt?.toIso8601String(),
       'sort_order': sortOrder,
       'is_archived': isArchived,
+      'ai_generated': aiGenerated,
+      'ai_estimated_duration': aiEstimatedDuration,
+      'ai_metadata': aiMetadata,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };

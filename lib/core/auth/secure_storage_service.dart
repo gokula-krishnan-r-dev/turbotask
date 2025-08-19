@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Secure storage service using SharedPreferences with encryption.
 /// Provides professional token storage with encryption for sensitive data.
-@singleton
 class SecureStorageService {
   SecureStorageService(this._prefs);
 

@@ -97,6 +97,10 @@ abstract class RegisterModule {
       ApiService(dio, secureStorage);
 
   @singleton
+  SecureStorageService secureStorageService(SharedPreferences prefs) =>
+      SecureStorageService(prefs);
+
+  @singleton
   Dio get dio => Dio()
     ..options = BaseOptions(
       connectTimeout: const Duration(seconds: 30),

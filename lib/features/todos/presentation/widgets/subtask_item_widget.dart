@@ -80,22 +80,66 @@ class SubtaskItemWidget extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Subtask name
-                    Text(
-                      subtask.name,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        decoration: isCompleted
-                            ? TextDecoration.lineThrough
-                            : TextDecoration.none,
-                        color: isCompleted
-                            ? theme.textTheme.bodyMedium?.color?.withOpacity(
-                                0.6,
-                              )
-                            : theme.textTheme.bodyMedium?.color,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    // Subtask name with AI indicator
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            subtask.name,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              decoration: isCompleted
+                                  ? TextDecoration.lineThrough
+                                  : TextDecoration.none,
+                              color: isCompleted
+                                  ? theme.textTheme.bodyMedium?.color
+                                        ?.withOpacity(0.6)
+                                  : theme.textTheme.bodyMedium?.color,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+
+                        // AI-generated indicator
+                        if (subtask.aiGenerated) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: Colors.purple.withOpacity(0.3),
+                                width: 0.5,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.auto_awesome,
+                                  size: 10,
+                                  color: Colors.purple,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  'AI',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: Colors.purple,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
 
                     // Subtask description (if available)
@@ -116,9 +160,10 @@ class SubtaskItemWidget extends StatelessWidget {
                       ),
                     ],
 
-                    // Priority and status indicators
+                    // Priority, status, and AI indicators
                     if (subtask.priority != Priority.medium ||
-                        subtask.dueDate != null) ...[
+                        subtask.dueDate != null ||
+                        subtask.aiEstimatedDuration != null) ...[
                       const SizedBox(height: 4),
                       Row(
                         children: [
@@ -164,6 +209,40 @@ class SubtaskItemWidget extends StatelessWidget {
                                     ? AppColors.error
                                     : theme.textTheme.bodySmall?.color
                                           ?.withOpacity(0.6),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+
+                          // AI estimated duration indicator
+                          if (subtask.aiEstimatedDuration != null) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.purple.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.timer,
+                                    size: 10,
+                                    color: Colors.purple,
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '${subtask.aiEstimatedDuration}m',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: Colors.purple,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],

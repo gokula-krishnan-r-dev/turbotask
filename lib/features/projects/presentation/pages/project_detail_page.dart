@@ -371,8 +371,11 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: AddTaskWidget(
+              projectId: widget.project.id,
               columnId: column.status.value,
               onAddTask: (taskName) => _onAddTask(column.status, taskName),
+              onAddAITask: (aiTaskData) =>
+                  _onAddAITask(column.status, aiTaskData),
             ),
           ),
         ],
@@ -536,6 +539,51 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
         status: status,
       ),
     );
+  }
+
+  void _onAddAITask(TaskStatus status, Map<String, dynamic> aiTaskData) {
+    // Create the main task first
+    final taskName = aiTaskData['task_name'] as String? ?? 'AI-generated task';
+    final description = aiTaskData['enhanced_description'] as String?;
+    final emoji = aiTaskData['emoji'] as String?;
+    final priority = aiTaskData['priority'] as String?;
+    final estimatedDuration = aiTaskData['estimated_duration_minutes'] as int?;
+    final tags =
+        (aiTaskData['tags'] as List<dynamic>?)?.cast<String>() ?? <String>[];
+    final aiSubtasks =
+        aiTaskData['ai_generated_subtasks'] as List<dynamic>? ?? [];
+
+    // For now, we'll use the existing CreateTodoInColumn event
+    // TODO: Create a new event specifically for AI-enhanced tasks that includes all metadata
+    context.read<KanbanBoardBloc>().add(
+      CreateTodoInColumn(
+        projectId: widget.project.id,
+        taskName: taskName,
+        status: status,
+      ),
+    );
+
+    // Show success feedback with AI enhancement details
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'AI-enhanced task "$taskName" created with ${aiSubtasks.length} subtasks ${emoji ?? ""}',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.purple.shade600,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 }
 

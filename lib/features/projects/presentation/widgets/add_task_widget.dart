@@ -2,23 +2,50 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/constants/api_constants.dart';
 
 /// Intent for opening the add task widget
 class OpenAddTaskIntent extends Intent {
   const OpenAddTaskIntent();
 }
 
-/// Widget for adding new tasks inline within kanban columns
+/// Widget for adding new tasks inline within kanban columns with AI Enhancement support
+///
+/// Features:
+/// - Toggle between regular task creation and AI-enhanced creation
+/// - When AI Enhancement is ON: provides additional fields and calls AI API
+/// - When AI Enhancement is OFF: simple task name input only
+///
+/// Usage:
+/// ```dart
+/// AddTaskWidget(
+///   columnId: 'column-uuid',
+///   projectId: 'project-uuid',
+///   onAddTask: (taskName) {
+///     // Handle regular task creation
+///   },
+///   onAddAITask: (aiTaskData) {
+///     // Handle AI-enhanced task creation
+///     // aiTaskData contains: enhanced_description, emoji, priority, ai_generated_subtasks, etc.
+///   },
+/// )
+/// ```
 class AddTaskWidget extends StatefulWidget {
   const AddTaskWidget({
     super.key,
     required this.columnId,
+    required this.projectId,
     required this.onAddTask,
+    required this.onAddAITask,
   });
 
   final String columnId;
+  final String projectId;
   final Function(String taskName) onAddTask;
+  final Function(Map<String, dynamic> aiTaskData) onAddAITask;
 
   @override
   State<AddTaskWidget> createState() => _AddTaskWidgetState();
@@ -28,8 +55,15 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
     with TickerProviderStateMixin {
   bool _isExpanded = false;
   bool _isSubmitting = false;
-  final TextEditingController _controller = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
+  bool _isAIEnhanced = false;
+  final TextEditingController _taskNameController = TextEditingController();
+  final TextEditingController _taskDescriptionController =
+      TextEditingController();
+  final TextEditingController _projectContextController =
+      TextEditingController();
+  final FocusNode _taskNameFocusNode = FocusNode();
+  final FocusNode _taskDescriptionFocusNode = FocusNode();
+  final FocusNode _projectContextFocusNode = FocusNode();
   Timer? _autoCollapseTimer;
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -49,23 +83,27 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
     );
 
     // Listen to focus changes to manage auto-collapse
-    _focusNode.addListener(_onFocusChange);
+    _taskNameFocusNode.addListener(_onFocusChange);
   }
 
   @override
   void dispose() {
     _autoCollapseTimer?.cancel();
     _animationController.dispose();
-    _controller.dispose();
-    _focusNode.removeListener(_onFocusChange);
-    _focusNode.dispose();
+    _taskNameController.dispose();
+    _taskDescriptionController.dispose();
+    _projectContextController.dispose();
+    _taskNameFocusNode.removeListener(_onFocusChange);
+    _taskNameFocusNode.dispose();
+    _taskDescriptionFocusNode.dispose();
+    _projectContextFocusNode.dispose();
     super.dispose();
   }
 
   void _onFocusChange() {
-    if (_focusNode.hasFocus) {
+    if (_taskNameFocusNode.hasFocus) {
       _cancelAutoCollapse();
-    } else if (_isExpanded && _controller.text.isEmpty) {
+    } else if (_isExpanded && _taskNameController.text.isEmpty) {
       _startAutoCollapse();
     }
   }
@@ -75,7 +113,7 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
     _autoCollapseTimer = Timer(
       const Duration(seconds: _autoCollapseDuration),
       () {
-        if (mounted && _isExpanded && _controller.text.isEmpty) {
+        if (mounted && _isExpanded && _taskNameController.text.isEmpty) {
           _handleCancel();
         }
       },
@@ -96,13 +134,15 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
         // Focus the text field when expanded
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            _focusNode.requestFocus();
+            _taskNameFocusNode.requestFocus();
           }
         });
       } else {
         _animationController.reverse();
-        // Clear the text field when collapsed
-        _controller.clear();
+        // Clear the text fields when collapsed
+        _taskNameController.clear();
+        _taskDescriptionController.clear();
+        _projectContextController.clear();
       }
     });
   }
@@ -116,20 +156,20 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
       _animationController.forward();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          _focusNode.requestFocus();
+          _taskNameFocusNode.requestFocus();
         }
       });
     } else {
       // If already expanded, just focus the text field and cancel auto-collapse
       _cancelAutoCollapse();
       if (mounted) {
-        _focusNode.requestFocus();
+        _taskNameFocusNode.requestFocus();
       }
     }
   }
 
   Future<void> _handleSubmit() async {
-    final taskName = _controller.text.trim();
+    final taskName = _taskNameController.text.trim();
     if (taskName.isEmpty || _isSubmitting) return;
 
     setState(() {
@@ -137,23 +177,32 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
     });
 
     try {
-      // Add the task
-      widget.onAddTask(taskName);
+      if (_isAIEnhanced) {
+        // Call AI API to enhance the task
+        await _createAIEnhancedTask();
+      } else {
+        // Regular task creation
+        widget.onAddTask(taskName);
+        _showTaskAddedFeedback();
+      }
 
-      // Clear the text field
-      _controller.clear();
-
-      // Show brief success feedback
-      _showTaskAddedFeedback();
+      // Clear the text fields
+      _taskNameController.clear();
+      _taskDescriptionController.clear();
+      _projectContextController.clear();
 
       // Keep widget expanded for continuous task creation
       // and refocus for the next task
       await Future.delayed(const Duration(milliseconds: 100));
 
       if (mounted) {
-        _focusNode.requestFocus();
+        _taskNameFocusNode.requestFocus();
         // Start auto-collapse timer for better UX
         _startAutoCollapse();
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorFeedback('Failed to create task: ${e.toString()}');
       }
     } finally {
       if (mounted) {
@@ -164,29 +213,109 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
     }
   }
 
+  Future<void> _createAIEnhancedTask() async {
+    try {
+      final aiTaskData = await _callAIEnhancementAPI();
+      if (aiTaskData != null) {
+        widget.onAddAITask(aiTaskData);
+        _showTaskAddedFeedback(isAIEnhanced: true);
+      } else {
+        throw Exception('Failed to get AI enhancement');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _callAIEnhancementAPI() async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}/api/v1/ai/tasks'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${await _getAuthToken()}',
+        },
+        body: jsonEncode({
+          'task_name': _taskNameController.text.trim(),
+          'task_description': _taskDescriptionController.text.trim(),
+          'project_id': widget.projectId,
+          'column_id': widget.columnId,
+          'project_context': _projectContextController.text.trim(),
+          'user_preferences':
+              'Focus on professional development best practices',
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        return data['data'];
+      } else {
+        throw Exception('AI API call failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  Future<String> _getAuthToken() async {
+    // TODO: Implement actual token retrieval from secure storage
+    // For now, return a placeholder
+    return 'your-jwt-token-here';
+  }
+
   void _handleCancel() {
     _cancelAutoCollapse();
-    _controller.clear();
+    _taskNameController.clear();
+    _taskDescriptionController.clear();
+    _projectContextController.clear();
     setState(() {
       _isExpanded = false;
     });
     _animationController.reverse();
   }
 
-  void _showTaskAddedFeedback() {
+  void _showTaskAddedFeedback({bool isAIEnhanced = false}) {
     // Brief visual feedback that task was added
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.check_circle, color: AppColors.mint, size: 16),
+            Icon(
+              isAIEnhanced ? Icons.auto_awesome : Icons.check_circle,
+              color: AppColors.mint,
+              size: 16,
+            ),
             const SizedBox(width: 8),
-            const Text('Task added successfully'),
+            Text(
+              isAIEnhanced
+                  ? 'AI-enhanced task created successfully!'
+                  : 'Task added successfully',
+            ),
           ],
         ),
-        duration: const Duration(milliseconds: 1500),
+        duration: const Duration(milliseconds: 2000),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.green.shade600,
+        backgroundColor: isAIEnhanced
+            ? Colors.purple.shade600
+            : Colors.green.shade600,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  void _showErrorFeedback(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.white, size: 16),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        duration: const Duration(milliseconds: 3000),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.red.shade600,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
@@ -310,7 +439,9 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
                 side: BorderSide(
-                  color: AppColors.mint.withValues(alpha: 0.3),
+                  color: _isAIEnhanced
+                      ? Colors.purple.withValues(alpha: 0.3)
+                      : AppColors.mint.withValues(alpha: 0.3),
                   width: 1,
                 ),
               ),
@@ -319,49 +450,79 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header with task counter or instruction
+                    // Header with AI toggle
                     Row(
                       children: [
-                        Icon(Icons.add_task, size: 16, color: AppColors.mint),
+                        Icon(
+                          _isAIEnhanced ? Icons.auto_awesome : Icons.add_task,
+                          size: 16,
+                          color: _isAIEnhanced ? Colors.purple : AppColors.mint,
+                        ),
                         const SizedBox(width: 6),
                         Text(
-                          'Add new task',
+                          _isAIEnhanced
+                              ? 'Create AI-Enhanced Task'
+                              : 'Add new task',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppColors.mint,
+                            color: _isAIEnhanced
+                                ? Colors.purple
+                                : AppColors.mint,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         const Spacer(),
-                        if (_autoCollapseTimer != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: theme.dividerColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'Auto-close in ${_autoCollapseDuration}s',
+                        // AI Enhancement Toggle
+                        Row(
+                          children: [
+                            Text(
+                              'AI Enhance',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                fontSize: 10,
-                                color: theme.textTheme.bodySmall?.color
-                                    ?.withValues(alpha: 0.6),
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Switch(
+                              value: _isAIEnhanced,
+                              onChanged: _isSubmitting
+                                  ? null
+                                  : (value) {
+                                      setState(() {
+                                        _isAIEnhanced = value;
+                                      });
+                                      _cancelAutoCollapse();
+                                    },
+                              activeColor: Colors.purple,
+                              thumbColor: WidgetStateProperty.resolveWith((
+                                states,
+                              ) {
+                                if (states.contains(WidgetState.selected)) {
+                                  return Colors.purple;
+                                }
+                                return Colors.grey.shade400;
+                              }),
+                              trackColor: WidgetStateProperty.resolveWith((
+                                states,
+                              ) {
+                                if (states.contains(WidgetState.selected)) {
+                                  return Colors.purple.withOpacity(0.3);
+                                }
+                                return Colors.grey.shade300;
+                              }),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
 
-                    // Title input
+                    // Task Name input
                     TextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
+                      controller: _taskNameController,
+                      focusNode: _taskNameFocusNode,
                       enabled: !_isSubmitting,
                       decoration: InputDecoration(
+                        labelText: 'Task Name *',
                         hintText: 'Enter task name...',
                         hintStyle: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.textTheme.bodyMedium?.color?.withValues(
@@ -377,7 +538,9 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide(
-                            color: AppColors.mint,
+                            color: _isAIEnhanced
+                                ? Colors.purple
+                                : AppColors.mint,
                             width: 2,
                           ),
                         ),
@@ -393,24 +556,151 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    AppColors.mint,
+                                    _isAIEnhanced
+                                        ? Colors.purple
+                                        : AppColors.mint,
                                   ),
                                 ),
                               )
                             : null,
                       ),
                       style: theme.textTheme.bodyMedium,
-                      maxLines: 3,
+                      maxLines: 2,
                       minLines: 1,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _handleSubmit(),
+                      textInputAction: _isAIEnhanced
+                          ? TextInputAction.next
+                          : TextInputAction.done,
+                      onSubmitted: (_) {
+                        if (_isAIEnhanced) {
+                          _taskDescriptionFocusNode.requestFocus();
+                        } else {
+                          _handleSubmit();
+                        }
+                      },
                       onChanged: (_) {
-                        // Cancel auto-collapse when user is typing
                         _cancelAutoCollapse();
                       },
                     ),
 
-                    const SizedBox(height: 12),
+                    // AI-specific fields
+                    if (_isAIEnhanced) ...[
+                      const SizedBox(height: 12),
+
+                      // Task Description
+                      TextField(
+                        controller: _taskDescriptionController,
+                        focusNode: _taskDescriptionFocusNode,
+                        enabled: !_isSubmitting,
+                        decoration: InputDecoration(
+                          labelText: 'Task Description',
+                          hintText: 'Describe what needs to be done...',
+                          hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.textTheme.bodyMedium?.color
+                                ?.withValues(alpha: 0.5),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(
+                              color: Colors.purple,
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                        ),
+                        style: theme.textTheme.bodyMedium,
+                        maxLines: 3,
+                        minLines: 2,
+                        textInputAction: TextInputAction.next,
+                        onSubmitted: (_) {
+                          _projectContextFocusNode.requestFocus();
+                        },
+                        onChanged: (_) {
+                          _cancelAutoCollapse();
+                        },
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Project Context
+                      TextField(
+                        controller: _projectContextController,
+                        focusNode: _projectContextFocusNode,
+                        enabled: !_isSubmitting,
+                        decoration: InputDecoration(
+                          labelText: 'Project Context',
+                          hintText:
+                              'e.g., Flutter mobile app, React website...',
+                          hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.textTheme.bodyMedium?.color
+                                ?.withValues(alpha: 0.5),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(
+                              color: Colors.purple,
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                        ),
+                        style: theme.textTheme.bodyMedium,
+                        maxLines: 2,
+                        minLines: 1,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _handleSubmit(),
+                        onChanged: (_) {
+                          _cancelAutoCollapse();
+                        },
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // AI Enhancement info
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.purple.withOpacity(0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.lightbulb,
+                              size: 16,
+                              color: Colors.purple,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'AI will generate task description, subtasks, priority, and emoji',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.purple.shade700,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 16),
 
                     // Action buttons
                     Row(
@@ -419,12 +709,14 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                         ElevatedButton(
                           onPressed: _isSubmitting ? null : _handleSubmit,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.black,
+                            backgroundColor: _isAIEnhanced
+                                ? Colors.purple
+                                : AppColors.black,
                             foregroundColor: Colors.white,
                             disabledBackgroundColor: theme.disabledColor,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
-                              vertical: 8,
+                              vertical: 12,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(6),
@@ -446,9 +738,18 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                                   ),
                                 ),
                                 const SizedBox(width: 8),
+                              ] else if (_isAIEnhanced) ...[
+                                const Icon(Icons.auto_awesome, size: 16),
+                                const SizedBox(width: 6),
                               ],
                               Text(
-                                _isSubmitting ? 'Adding...' : 'Add Task',
+                                _isSubmitting
+                                    ? (_isAIEnhanced
+                                          ? 'Enhancing with AI...'
+                                          : 'Adding...')
+                                    : (_isAIEnhanced
+                                          ? 'Create with AI'
+                                          : 'Add Task'),
                                 style: const TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -468,7 +769,7 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                                 ?.withValues(alpha: 0.7),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
-                              vertical: 8,
+                              vertical: 12,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(6),
@@ -484,73 +785,15 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                         ),
 
                         const Spacer(),
-
-                        // Quick actions
-                        PopupMenuButton<String>(
-                          enabled: !_isSubmitting,
-                          icon: Icon(
-                            Icons.more_horiz,
-                            size: 18,
-                            color: _isSubmitting
-                                ? theme.disabledColor
-                                : theme.iconTheme.color?.withValues(alpha: 0.6),
-                          ),
-                          tooltip: 'More options',
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'priority',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.flag, size: 16),
-                                  SizedBox(width: 8),
-                                  Text('Set Priority'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'assignee',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.person, size: 16),
-                                  SizedBox(width: 8),
-                                  Text('Assign To'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'duedate',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.schedule, size: 16),
-                                  SizedBox(width: 8),
-                                  Text('Due Date'),
-                                ],
-                              ),
-                            ),
-                          ],
-                          onSelected: (value) {
-                            // Cancel auto-collapse when interacting with options
-                            _cancelAutoCollapse();
-                            switch (value) {
-                              case 'priority':
-                                _showPrioritySelector();
-                                break;
-                              case 'assignee':
-                                _showAssigneeSelector();
-                                break;
-                              case 'duedate':
-                                _showDatePicker();
-                                break;
-                            }
-                          },
-                        ),
                       ],
                     ),
 
-                    // Helpful tip for continuous task creation
+                    // Helpful tip
                     const SizedBox(height: 8),
                     Text(
-                      'Press Enter to add quickly or Escape to close',
+                      _isAIEnhanced
+                          ? 'AI will enhance your task with smart suggestions'
+                          : 'Press Enter to add quickly or Escape to close',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.textTheme.bodySmall?.color?.withValues(
                           alpha: 0.5,

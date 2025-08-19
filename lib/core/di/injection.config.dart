@@ -54,6 +54,18 @@ import 'package:turbotask/features/projects/domain/usecases/get_user_projects_us
     as _i69;
 import 'package:turbotask/features/projects/presentation/bloc/projects_bloc.dart'
     as _i217;
+import 'package:turbotask/features/reports/data/datasources/reports_api_service.dart'
+    as _i922;
+import 'package:turbotask/features/reports/data/repositories/reports_repository_impl.dart'
+    as _i569;
+import 'package:turbotask/features/reports/domain/repositories/reports_repository.dart'
+    as _i732;
+import 'package:turbotask/features/reports/domain/usecases/export_report_usecase.dart'
+    as _i442;
+import 'package:turbotask/features/reports/domain/usecases/get_reports_overview_usecase.dart'
+    as _i116;
+import 'package:turbotask/features/reports/presentation/bloc/reports_bloc.dart'
+    as _i424;
 import 'package:turbotask/features/todos/data/datasources/kanban_remote_datasource.dart'
     as _i341;
 import 'package:turbotask/features/todos/data/datasources/note_remote_datasource.dart'
@@ -123,7 +135,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.singleton<_i336.FocusModeService>(() => _i336.FocusModeService());
     gh.singleton<_i511.FocusToastService>(() => _i511.FocusToastService());
     gh.singleton<_i484.SecureStorageService>(
-      () => _i484.SecureStorageService(gh<_i460.SharedPreferences>()),
+      () => registerModule.secureStorageService(gh<_i460.SharedPreferences>()),
     );
     gh.singleton<_i79.ApiService>(
       () => registerModule.apiService(
@@ -155,6 +167,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.singleton<_i247.ProjectRemoteDataSource>(
       () => _i247.ProjectRemoteDataSourceImpl(gh<_i79.ApiService>()),
     );
+    gh.lazySingleton<_i922.ReportsApiService>(
+      () => _i922.ReportsApiServiceImpl(gh<_i79.ApiService>()),
+    );
     gh.factory<_i699.TodoActionsRemoteDataSource>(
       () => _i699.TodoActionsRemoteDataSourceImpl(gh<_i79.ApiService>()),
     );
@@ -165,6 +180,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.singleton<_i577.AuthRemoteDataSource>(
       () => _i577.AuthRemoteDataSourceImpl(gh<_i79.ApiService>()),
+    );
+    gh.lazySingleton<_i732.ReportsRepository>(
+      () => _i569.ReportsRepositoryImpl(gh<_i922.ReportsApiService>()),
     );
     gh.lazySingleton<_i592.SubtaskRepository>(
       () => _i517.SubtaskRepositoryImpl(gh<_i283.SubtaskRemoteDataSource>()),
@@ -267,6 +285,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i885.TodoActionsUseCase>(
       () => _i885.TodoActionsUseCase(gh<_i832.TodoActionsRepository>()),
     );
+    gh.factory<_i116.GetReportsOverviewUseCase>(
+      () => _i116.GetReportsOverviewUseCase(gh<_i732.ReportsRepository>()),
+    );
+    gh.factory<_i442.ExportReportUseCase>(
+      () => _i442.ExportReportUseCase(gh<_i732.ReportsRepository>()),
+    );
     gh.factory<_i352.OtpBloc>(
       () => _i352.OtpBloc(
         gh<_i460.VerifyOtpUseCase>(),
@@ -278,6 +302,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i69.GetUserProjectsUseCase>(),
         gh<_i245.CreateProjectUseCase>(),
         gh<_i967.GetProjectStatsUseCase>(),
+      ),
+    );
+    gh.factory<_i424.ReportsBloc>(
+      () => _i424.ReportsBloc(
+        gh<_i116.GetReportsOverviewUseCase>(),
+        gh<_i442.ExportReportUseCase>(),
+        gh<_i732.ReportsRepository>(),
       ),
     );
     gh.factory<_i623.NoteBloc>(
