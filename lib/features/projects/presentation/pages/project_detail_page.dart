@@ -13,6 +13,7 @@ import '../../../todos/presentation/bloc/kanban_board_bloc.dart';
 import '../../domain/entities/project.dart';
 import '../widgets/add_task_widget.dart';
 import '../widgets/task_card_widget.dart';
+import '../widgets/task_detail_sidebar.dart';
 
 /// Project detail page with kanban board layout
 class ProjectDetailPage extends StatefulWidget {
@@ -45,6 +46,8 @@ class _ProjectDetailView extends StatefulWidget {
 }
 
 class _ProjectDetailViewState extends State<_ProjectDetailView> {
+  Todo? _selectedTask;
+  bool _isSidebarVisible = false;
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
