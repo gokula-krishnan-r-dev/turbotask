@@ -139,12 +139,4 @@ class ProjectSelector extends StatelessWidget {
       ),
     );
   }
-
-  Color _parseColor(String colorString) {
-    try {
-      return Color(int.parse(colorString.replaceFirst('#', '0xFF')));
-    } catch (e) {
-      return const Color(0xFF8DE0C8); // Default color
-    }
-  }
 }

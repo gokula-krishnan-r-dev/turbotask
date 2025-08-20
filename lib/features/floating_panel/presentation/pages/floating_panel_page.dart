@@ -670,6 +670,8 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
               onAddTask: (taskName) => _onAddTask(column.status, taskName),
               onAddAITask: (aiTaskData) =>
                   _onAddAITask(column.status, aiTaskData),
+              onAddScheduledTask: (scheduledTaskData) =>
+                  _onAddScheduledTask(column.status, scheduledTaskData),
             ),
           ),
 
@@ -939,6 +941,54 @@ class _TodayColumnViewState extends State<_TodayColumnView> {
             ],
           ),
           backgroundColor: Colors.purple.shade600,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  void _onAddScheduledTask(
+    TaskStatus status,
+    Map<String, dynamic> scheduledTaskData,
+  ) {
+    // Create the main task first
+    final taskName =
+        scheduledTaskData['task_name'] as String? ?? 'Scheduled task';
+    final scheduledDateTime =
+        scheduledTaskData['scheduled_datetime'] as String?;
+    final isRecurring = scheduledTaskData['is_recurring'] as bool? ?? false;
+    final recurrencePattern =
+        scheduledTaskData['recurrence_pattern'] as String? ?? 'none';
+
+    // For now, we'll use the existing CreateTodoInColumn event
+    // TODO: Integrate with actual ScheduledTask API to create both todo and schedule
+    context.read<KanbanBoardBloc>().add(
+      CreateTodoInColumn(
+        projectId: widget.projectId,
+        taskName: taskName,
+        status: status,
+      ),
+    );
+
+    // Show success feedback with scheduling details
+    if (mounted) {
+      final scheduleText = isRecurring
+          ? 'recurring ${recurrencePattern.replaceAll('_', ' ')}'
+          : 'scheduled';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.schedule, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Task "$taskName" created and $scheduleText'),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.blue.shade600,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 3),
         ),

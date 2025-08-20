@@ -42,13 +42,14 @@ class _TaskDetailSidebarState extends State<TaskDetailSidebar>
   bool _isGeneratingDescription = false;
   bool _isUpdatingDescription = false;
   String _currentDescription = '';
+  String _currentTaskId = '';
+  SubtaskBloc? _subtaskBloc;
 
   @override
   void initState() {
     super.initState();
     _todoActionsDataSource = getIt<TodoActionsRemoteDataSource>();
     _authManager = getIt<AuthManager>();
-    _currentDescription = widget.task.taskDescription ?? '';
 
     // Initialize animation
     _animationController = AnimationController(
@@ -59,11 +60,64 @@ class _TaskDetailSidebarState extends State<TaskDetailSidebar>
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
     );
 
-    // Initialize rich text editor
-    _initializeEditor();
+    // Initialize task-specific content
+    _initializeTaskContent();
 
     // Start slide-in animation
     _animationController.forward();
+  }
+
+  @override
+  void didUpdateWidget(TaskDetailSidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Check if the task has changed
+    if (oldWidget.task.id != widget.task.id) {
+      _initializeTaskContent();
+    }
+  }
+
+  void _initializeTaskContent() {
+    _currentTaskId = widget.task.id;
+    _currentDescription = widget.task.taskDescription ?? '';
+
+    // Initialize rich text editor
+    _initializeEditor();
+
+    // Initialize or update subtask bloc
+    _initializeSubtaskBloc();
+  }
+
+  void _initializeSubtaskBloc() {
+    // Dispose previous bloc if exists
+    _subtaskBloc?.close();
+
+    // Create new bloc for current task
+    _subtaskBloc = getIt<SubtaskBloc>()..add(LoadSubtasks(_currentTaskId));
+  }
+
+  /// Refreshes the task content when the task changes
+  void _refreshTaskContent() {
+    if (mounted) {
+      try {
+        setState(() {
+          _initializeTaskContent();
+        });
+
+        // Debug logging (remove in production)
+        debugPrint(
+          'TaskDetailSidebar: Refreshed content for task ${widget.task.id}',
+        );
+      } catch (e) {
+        debugPrint('TaskDetailSidebar: Error refreshing content: $e');
+      }
+    }
+  }
+
+  /// Checks if the current task data is stale and needs refreshing
+  bool _isTaskDataStale() {
+    return _currentTaskId != widget.task.id ||
+        _currentDescription != (widget.task.taskDescription ?? '');
   }
 
   void _initializeEditor() {
@@ -90,6 +144,7 @@ class _TaskDetailSidebarState extends State<TaskDetailSidebar>
   @override
   void dispose() {
     _animationController.dispose();
+    _subtaskBloc?.close();
     super.dispose();
   }
 
@@ -130,6 +185,11 @@ class _TaskDetailSidebarState extends State<TaskDetailSidebar>
         setState(() {
           _editorState = EditorState(document: document);
           _currentDescription = enhancedDescription;
+        });
+
+        // Auto-save the enhanced description
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _saveDescription();
         });
 
         // Show success message
@@ -177,7 +237,7 @@ class _TaskDetailSidebarState extends State<TaskDetailSidebar>
       final jsonContent = jsonEncode(document.toJson());
 
       final request = UpdateTodoRequest(taskDescription: jsonContent);
-      await _todoActionsDataSource.updateTodo(widget.task.id, request);
+      await _todoActionsDataSource.updateTodo(_currentTaskId, request);
 
       setState(() {
         _currentDescription = jsonContent;
@@ -228,6 +288,13 @@ class _TaskDetailSidebarState extends State<TaskDetailSidebar>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    // Check if we need to refresh task data
+    if (_isTaskDataStale()) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _refreshTaskContent();
+      });
+    }
 
     return AnimatedBuilder(
       animation: _slideAnimation,
@@ -529,6 +596,43 @@ class _TaskDetailSidebarState extends State<TaskDetailSidebar>
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+
+                // Show update indicator if task data is being refreshed
+                if (_isTaskDataStale()) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Updating...',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
                 const Spacer(),
 
                 // AI Generate button
@@ -605,6 +709,7 @@ class _TaskDetailSidebarState extends State<TaskDetailSidebar>
               border: Border.all(color: theme.dividerColor.withOpacity(0.3)),
             ),
             child: AppFlowyEditor(
+              key: ValueKey('editor_$_currentTaskId'),
               editorState: _editorState,
               editorStyle: EditorStyle.mobile(
                 textStyleConfiguration: TextStyleConfiguration(
@@ -641,17 +746,44 @@ class _TaskDetailSidebarState extends State<TaskDetailSidebar>
           ),
 
           // Subtasks list
-          BlocProvider(
-            create: (context) =>
-                getIt<SubtaskBloc>()..add(LoadSubtasks(widget.task.id)),
-            child: SubtaskListWidget(
-              isVisible: true,
-              todoId: widget.task.id,
-              isExpanded: true,
-              maxVisibleSubtasks: 10,
-              onExpandToggle: () {}, // Always expanded in sidebar
+          if (_subtaskBloc != null)
+            BlocProvider.value(
+              key: ValueKey('subtasks_$_currentTaskId'),
+              value: _subtaskBloc!,
+              child: SubtaskListWidget(
+                isVisible: true,
+                todoId: _currentTaskId,
+                isExpanded: true,
+                maxVisibleSubtasks: 10,
+                onExpandToggle: () {}, // Always expanded in sidebar
+              ),
+            )
+          else
+            // Loading placeholder while subtask bloc is being initialized
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.mint,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Loading subtasks...',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                        0.7,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

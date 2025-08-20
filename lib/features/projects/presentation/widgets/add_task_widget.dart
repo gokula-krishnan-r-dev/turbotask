@@ -40,12 +40,14 @@ class AddTaskWidget extends StatefulWidget {
     required this.projectId,
     required this.onAddTask,
     required this.onAddAITask,
+    required this.onAddScheduledTask,
   });
 
   final String columnId;
   final String projectId;
   final Function(String taskName) onAddTask;
   final Function(Map<String, dynamic> aiTaskData) onAddAITask;
+  final Function(Map<String, dynamic> scheduledTaskData) onAddScheduledTask;
 
   @override
   State<AddTaskWidget> createState() => _AddTaskWidgetState();
@@ -56,11 +58,20 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
   bool _isExpanded = false;
   bool _isSubmitting = false;
   bool _isAIEnhanced = false;
+  bool _isScheduled = false;
   final TextEditingController _taskNameController = TextEditingController();
   final TextEditingController _taskDescriptionController =
       TextEditingController();
   final TextEditingController _projectContextController =
       TextEditingController();
+
+  // Scheduling state variables
+  DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
+  String _selectedDateOption =
+      'today'; // today, later_today, tomorrow, next_week, custom
+  bool _isRecurring = false;
+  String _recurringPattern = 'none'; // none, daily, weekdays, weekly, monthly
   final FocusNode _taskNameFocusNode = FocusNode();
   final FocusNode _taskDescriptionFocusNode = FocusNode();
   final FocusNode _projectContextFocusNode = FocusNode();
@@ -177,7 +188,10 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
     });
 
     try {
-      if (_isAIEnhanced) {
+      if (_isScheduled) {
+        // Create scheduled task
+        await _createScheduledTask();
+      } else if (_isAIEnhanced) {
         // Call AI API to enhance the task
         await _createAIEnhancedTask();
       } else {
@@ -263,6 +277,161 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
     return 'your-jwt-token-here';
   }
 
+  Future<void> _createScheduledTask() async {
+    try {
+      final scheduledTaskData = await _buildScheduledTaskData();
+      widget.onAddScheduledTask(scheduledTaskData);
+      _showTaskAddedFeedback(isScheduled: true);
+    } catch (e) {
+      throw Exception('Failed to create scheduled task: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> _buildScheduledTaskData() async {
+    final DateTime scheduledDateTime = _calculateScheduledDateTime();
+
+    return {
+      'task_name': _taskNameController.text.trim(),
+      'task_description': _taskDescriptionController.text.trim(),
+      'project_id': widget.projectId,
+      'column_id': widget.columnId,
+      'scheduled_datetime': scheduledDateTime.toIso8601String(),
+      'is_all_day': _selectedTime == null,
+      'is_recurring': _isRecurring,
+      'recurrence_pattern': _isRecurring ? _recurringPattern : 'none',
+      'recurrence_interval': 1,
+      'reminder_minutes_before': 15,
+    };
+  }
+
+  DateTime _calculateScheduledDateTime() {
+    DateTime baseDate;
+    final now = DateTime.now();
+
+    switch (_selectedDateOption) {
+      case 'today':
+        baseDate = DateTime(now.year, now.month, now.day);
+        break;
+      case 'later_today':
+        baseDate = now.add(const Duration(hours: 2));
+        return baseDate;
+      case 'tomorrow':
+        baseDate = DateTime(now.year, now.month, now.day + 1);
+        break;
+      case 'next_week':
+        baseDate = DateTime(now.year, now.month, now.day + 7);
+        break;
+      case 'custom':
+        baseDate = _selectedDate ?? DateTime(now.year, now.month, now.day);
+        break;
+      default:
+        baseDate = DateTime(now.year, now.month, now.day);
+    }
+
+    // Add time if specified
+    if (_selectedTime != null) {
+      return DateTime(
+        baseDate.year,
+        baseDate.month,
+        baseDate.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      );
+    }
+
+    // Default to 9 AM if no time specified
+    return DateTime(baseDate.year, baseDate.month, baseDate.day, 9, 0);
+  }
+
+  void _selectDateOption(String option) {
+    setState(() {
+      _selectedDateOption = option;
+      if (option != 'custom') {
+        _selectedDate = null; // Clear custom date when using predefined options
+      }
+    });
+  }
+
+  Future<void> _pickCustomDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        _selectedDateOption = 'custom';
+      });
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime ?? TimeOfDay.now(),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedTime = picked;
+      });
+    }
+  }
+
+  String _getDateOptionDisplay(String option) {
+    switch (option) {
+      case 'today':
+        return 'Today';
+      case 'later_today':
+        return 'Later Today';
+      case 'tomorrow':
+        return 'Tomorrow';
+      case 'next_week':
+        return 'Next Week';
+      case 'custom':
+        if (_selectedDate != null) {
+          return '${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}';
+        }
+        return 'Pick Date';
+      default:
+        return 'Today';
+    }
+  }
+
+  Widget _buildDateOption(String value, String label) {
+    final isSelected = _selectedDateOption == value;
+    return InkWell(
+      onTap: () {
+        if (value == 'custom') {
+          _pickCustomDate();
+        } else {
+          _selectDateOption(value);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue : Colors.transparent,
+          border: Border.all(
+            color: isSelected ? Colors.blue : Colors.blue.withOpacity(0.3),
+          ),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.blue.shade700,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
   void _handleCancel() {
     _cancelAutoCollapse();
     _taskNameController.clear();
@@ -270,24 +439,39 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
     _projectContextController.clear();
     setState(() {
       _isExpanded = false;
+      _isScheduled = false;
+      _selectedDate = null;
+      _selectedTime = null;
+      _selectedDateOption = 'today';
+      _isRecurring = false;
+      _recurringPattern = 'none';
     });
     _animationController.reverse();
   }
 
-  void _showTaskAddedFeedback({bool isAIEnhanced = false}) {
+  void _showTaskAddedFeedback({
+    bool isAIEnhanced = false,
+    bool isScheduled = false,
+  }) {
     // Brief visual feedback that task was added
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             Icon(
-              isAIEnhanced ? Icons.auto_awesome : Icons.check_circle,
+              isScheduled
+                  ? Icons.schedule
+                  : isAIEnhanced
+                  ? Icons.auto_awesome
+                  : Icons.check_circle,
               color: AppColors.mint,
               size: 16,
             ),
             const SizedBox(width: 8),
             Text(
-              isAIEnhanced
+              isScheduled
+                  ? 'Scheduled task created successfully!'
+                  : isAIEnhanced
                   ? 'AI-enhanced task created successfully!'
                   : 'Task added successfully',
             ),
@@ -295,7 +479,9 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
         ),
         duration: const Duration(milliseconds: 2000),
         behavior: SnackBarBehavior.floating,
-        backgroundColor: isAIEnhanced
+        backgroundColor: isScheduled
+            ? Colors.blue.shade600
+            : isAIEnhanced
             ? Colors.purple.shade600
             : Colors.green.shade600,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -439,7 +625,9 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
                 side: BorderSide(
-                  color: _isAIEnhanced
+                  color: _isScheduled
+                      ? Colors.blue.withValues(alpha: 0.3)
+                      : _isAIEnhanced
                       ? Colors.purple.withValues(alpha: 0.3)
                       : AppColors.mint.withValues(alpha: 0.3),
                   width: 1,
@@ -450,37 +638,93 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header with AI toggle
+                    // Header with toggles
                     Row(
                       children: [
                         Icon(
-                          _isAIEnhanced ? Icons.auto_awesome : Icons.add_task,
+                          _isScheduled
+                              ? Icons.schedule
+                              : _isAIEnhanced
+                              ? Icons.auto_awesome
+                              : Icons.add_task,
                           size: 16,
-                          color: _isAIEnhanced ? Colors.purple : AppColors.mint,
+                          color: _isScheduled
+                              ? Colors.blue
+                              : _isAIEnhanced
+                              ? Colors.purple
+                              : AppColors.mint,
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          _isAIEnhanced
+                          _isScheduled
+                              ? 'Schedule Task'
+                              : _isAIEnhanced
                               ? 'Create AI-Enhanced Task'
                               : 'Add new task',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: _isAIEnhanced
+                            color: _isScheduled
+                                ? Colors.blue
+                                : _isAIEnhanced
                                 ? Colors.purple
                                 : AppColors.mint,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         const Spacer(),
-                        // AI Enhancement Toggle
+                        // Enhancement Toggles
                         Row(
                           children: [
+                            // Schedule Toggle
                             Text(
-                              'AI Enhance',
+                              'Schedule',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 4),
+                            Switch(
+                              value: _isScheduled,
+                              onChanged: _isSubmitting
+                                  ? null
+                                  : (value) {
+                                      setState(() {
+                                        _isScheduled = value;
+                                        if (value) {
+                                          _isAIEnhanced =
+                                              false; // Disable AI when scheduling
+                                        }
+                                      });
+                                      _cancelAutoCollapse();
+                                    },
+                              activeColor: Colors.blue,
+                              thumbColor: WidgetStateProperty.resolveWith((
+                                states,
+                              ) {
+                                if (states.contains(WidgetState.selected)) {
+                                  return Colors.blue;
+                                }
+                                return Colors.grey.shade400;
+                              }),
+                              trackColor: WidgetStateProperty.resolveWith((
+                                states,
+                              ) {
+                                if (states.contains(WidgetState.selected)) {
+                                  return Colors.blue.withOpacity(0.3);
+                                }
+                                return Colors.grey.shade300;
+                              }),
+                            ),
+
+                            const SizedBox(width: 12),
+
+                            // AI Enhancement Toggle
+                            Text(
+                              'AI',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
                             Switch(
                               value: _isAIEnhanced,
                               onChanged: _isSubmitting
@@ -488,6 +732,10 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                                   : (value) {
                                       setState(() {
                                         _isAIEnhanced = value;
+                                        if (value) {
+                                          _isScheduled =
+                                              false; // Disable scheduling when using AI
+                                        }
                                       });
                                       _cancelAutoCollapse();
                                     },
@@ -538,7 +786,9 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide(
-                            color: _isAIEnhanced
+                            color: _isScheduled
+                                ? Colors.blue
+                                : _isAIEnhanced
                                 ? Colors.purple
                                 : AppColors.mint,
                             width: 2,
@@ -556,7 +806,9 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    _isAIEnhanced
+                                    _isScheduled
+                                        ? Colors.blue
+                                        : _isAIEnhanced
                                         ? Colors.purple
                                         : AppColors.mint,
                                   ),
@@ -567,12 +819,15 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                       style: theme.textTheme.bodyMedium,
                       maxLines: 2,
                       minLines: 1,
-                      textInputAction: _isAIEnhanced
+                      textInputAction: (_isAIEnhanced || _isScheduled)
                           ? TextInputAction.next
                           : TextInputAction.done,
                       onSubmitted: (_) {
                         if (_isAIEnhanced) {
                           _taskDescriptionFocusNode.requestFocus();
+                        } else if (_isScheduled) {
+                          // Focus moves to scheduling options
+                          _handleSubmit();
                         } else {
                           _handleSubmit();
                         }
@@ -700,6 +955,240 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                       ),
                     ],
 
+                    // Scheduling-specific fields
+                    if (_isScheduled) ...[
+                      const SizedBox(height: 12),
+
+                      // Date Selection
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.blue.withOpacity(0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today,
+                                  size: 16,
+                                  color: Colors.blue,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Schedule Details',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: Colors.blue.shade700,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            // Date options
+                            Text(
+                              'When:',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _buildDateOption('today', 'Today'),
+                                _buildDateOption('later_today', 'Later Today'),
+                                _buildDateOption('tomorrow', 'Tomorrow'),
+                                _buildDateOption('next_week', 'Next Week'),
+                                _buildDateOption(
+                                  'custom',
+                                  _getDateOptionDisplay('custom'),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            // Time selection
+                            Row(
+                              children: [
+                                Text(
+                                  'Time (optional):',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                InkWell(
+                                  onTap: _pickTime,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.blue.withOpacity(0.3),
+                                      ),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.access_time,
+                                          size: 14,
+                                          color: Colors.blue,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          _selectedTime?.format(context) ??
+                                              'Set Time',
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                color: Colors.blue.shade700,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                if (_selectedTime != null) ...[
+                                  const SizedBox(width: 8),
+                                  InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedTime = null;
+                                      });
+                                    },
+                                    child: Icon(
+                                      Icons.clear,
+                                      size: 16,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            // Recurring options
+                            Row(
+                              children: [
+                                Text(
+                                  'Recurring:',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Switch(
+                                  value: _isRecurring,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _isRecurring = value;
+                                      if (!value) {
+                                        _recurringPattern = 'none';
+                                      } else {
+                                        _recurringPattern = 'daily';
+                                      }
+                                    });
+                                  },
+                                  activeColor: Colors.blue,
+                                ),
+                              ],
+                            ),
+
+                            // Recurring pattern dropdown
+                            if (_isRecurring) ...[
+                              const SizedBox(height: 8),
+                              DropdownButtonFormField<String>(
+                                value: _recurringPattern,
+                                decoration: InputDecoration(
+                                  labelText: 'Repeat',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'daily',
+                                    child: Text('Every day'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'weekdays',
+                                    child: Text('Every weekday'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'weekly',
+                                    child: Text('Every week'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'monthly',
+                                    child: Text('Every month'),
+                                  ),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() {
+                                      _recurringPattern = value;
+                                    });
+                                  }
+                                },
+                              ),
+                            ],
+
+                            const SizedBox(height: 8),
+
+                            // Schedule info
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.info_outline,
+                                    size: 14,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Task will be scheduled and moved to your Today list at the specified time',
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: Colors.blue.shade700,
+                                            fontSize: 11,
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 16),
 
                     // Action buttons
@@ -709,7 +1198,9 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                         ElevatedButton(
                           onPressed: _isSubmitting ? null : _handleSubmit,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _isAIEnhanced
+                            backgroundColor: _isScheduled
+                                ? Colors.blue
+                                : _isAIEnhanced
                                 ? Colors.purple
                                 : AppColors.black,
                             foregroundColor: Colors.white,
@@ -738,16 +1229,23 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                                   ),
                                 ),
                                 const SizedBox(width: 8),
+                              ] else if (_isScheduled) ...[
+                                const Icon(Icons.schedule, size: 16),
+                                const SizedBox(width: 6),
                               ] else if (_isAIEnhanced) ...[
                                 const Icon(Icons.auto_awesome, size: 16),
                                 const SizedBox(width: 6),
                               ],
                               Text(
                                 _isSubmitting
-                                    ? (_isAIEnhanced
+                                    ? (_isScheduled
+                                          ? 'Scheduling...'
+                                          : _isAIEnhanced
                                           ? 'Enhancing with AI...'
                                           : 'Adding...')
-                                    : (_isAIEnhanced
+                                    : (_isScheduled
+                                          ? 'Schedule Task'
+                                          : _isAIEnhanced
                                           ? 'Create with AI'
                                           : 'Add Task'),
                                 style: const TextStyle(
@@ -791,7 +1289,9 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
                     // Helpful tip
                     const SizedBox(height: 8),
                     Text(
-                      _isAIEnhanced
+                      _isScheduled
+                          ? 'Task will be scheduled and appear at the specified time'
+                          : _isAIEnhanced
                           ? 'AI will enhance your task with smart suggestions'
                           : 'Press Enter to add quickly or Escape to close',
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -808,36 +1308,6 @@ class _AddTaskWidgetState extends State<AddTaskWidget>
           ),
         );
       },
-    );
-  }
-
-  void _showPrioritySelector() {
-    // TODO: Implement priority selector dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Priority selector coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _showAssigneeSelector() {
-    // TODO: Implement assignee selector dialog
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Assignee selector coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _showDatePicker() {
-    // TODO: Implement date picker
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Date picker coming soon!'),
-        duration: Duration(seconds: 2),
-      ),
     );
   }
 }
