@@ -5,12 +5,15 @@ import 'package:turbotask/core/services/floating_panel_manager.dart';
 import 'package:turbotask/features/floating_panel/presentation/pages/floating_panel_page.dart';
 
 import '../../../../core/di/injection.dart';
+import '../../../../core/services/realtime_kanban_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../todos/domain/entities/kanban_board.dart';
 import '../../../todos/domain/entities/todo.dart';
 import '../../../todos/presentation/bloc/kanban_board_bloc.dart';
 import '../../domain/entities/project.dart';
+import '../../domain/repositories/project_repository.dart';
+import '../../data/models/export_import_models.dart';
 import '../widgets/add_task_widget.dart';
 import '../widgets/task_card_widget.dart';
 import '../widgets/task_detail_sidebar.dart';
@@ -48,6 +51,35 @@ class _ProjectDetailView extends StatefulWidget {
 class _ProjectDetailViewState extends State<_ProjectDetailView> {
   Todo? _selectedTask;
   bool _isSidebarVisible = false;
+  bool _isExporting = false;
+  bool _isImporting = false;
+
+  late final RealtimeKanbanService _realtimeService;
+
+  @override
+  void initState() {
+    super.initState();
+    _realtimeService = getIt<RealtimeKanbanService>();
+
+    // Initialize WebSocket connection and real-time listening
+    _initializeRealtimeServices();
+  }
+
+  @override
+  void dispose() {
+    // Stop listening for real-time updates
+    _realtimeService.stopListening(widget.project.id);
+    super.dispose();
+  }
+
+  Future<void> _initializeRealtimeServices() async {
+    // Ensure WebSocket is connected
+    await _realtimeService.ensureConnected();
+
+    // Start listening for real-time updates for this project
+    final kanbanBloc = context.read<KanbanBoardBloc>();
+    _realtimeService.startListening(widget.project.id, kanbanBloc);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,10 +179,10 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (widget.project.description != null) ...[
+                if (widget.project.description.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    widget.project.description!,
+                    widget.project.description,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.textTheme.bodyMedium?.color?.withValues(
                         alpha: 0.7,
@@ -202,9 +234,88 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
             ),
           ),
 
+          const SizedBox(width: 16),
+
+          // Real-time connection status
+          StreamBuilder<bool>(
+            stream: _realtimeService.connectionStatus,
+            builder: (context, snapshot) {
+              final isConnected = snapshot.data ?? false;
+              return Tooltip(
+                message: isConnected
+                    ? 'Real-time updates connected'
+                    : 'Real-time updates disconnected',
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isConnected
+                        ? AppColors.mint.withOpacity(0.1)
+                        : Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: isConnected
+                          ? AppColors.mint.withOpacity(0.3)
+                          : Colors.red.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isConnected ? AppColors.mint : Colors.red,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Live',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: isConnected ? AppColors.mint : Colors.red,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+
+          const SizedBox(width: 16),
+
           // Action buttons
           Row(
             children: [
+              // Export button
+              IconButton(
+                onPressed: _isExporting ? null : () => _onExportProject(),
+                icon: _isExporting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.download),
+                tooltip: 'Export project data',
+              ),
+              // Import button
+              IconButton(
+                onPressed: _isImporting ? null : () => _onImportProject(),
+                icon: _isImporting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.upload),
+                tooltip: 'Import project data',
+              ),
               IconButton(
                 onPressed: () {
                   context.read<KanbanBoardBloc>().add(
@@ -580,14 +691,8 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
   void _onAddAITask(TaskStatus status, Map<String, dynamic> aiTaskData) {
     // Create the main task first
     final taskName = aiTaskData['task_name'] as String? ?? 'AI-generated task';
-    final description = aiTaskData['enhanced_description'] as String?;
-    final emoji = aiTaskData['emoji'] as String?;
-    final priority = aiTaskData['priority'] as String?;
-    final estimatedDuration = aiTaskData['estimated_duration_minutes'] as int?;
-    final tags =
-        (aiTaskData['tags'] as List<dynamic>?)?.cast<String>() ?? <String>[];
-    final aiSubtasks =
-        aiTaskData['ai_generated_subtasks'] as List<dynamic>? ?? [];
+    // Note: Additional AI-generated data like description, emoji, priority, etc.
+    // will be available when the AI enhancement completes via WebSocket
 
     // For now, we'll use the existing CreateTodoInColumn event
     // TODO: Create a new event specifically for AI-enhanced tasks that includes all metadata
@@ -609,7 +714,7 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'AI-enhanced task "$taskName" created with ${aiSubtasks.length} subtasks ${emoji ?? ""}',
+                  'AI-enhanced task "$taskName" created! AI enhancements will be applied shortly.',
                 ),
               ),
             ],
@@ -629,11 +734,8 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
     // Create the main task first
     final taskName =
         scheduledTaskData['task_name'] as String? ?? 'Scheduled task';
-    final scheduledDateTime =
-        scheduledTaskData['scheduled_datetime'] as String?;
-    final isRecurring = scheduledTaskData['is_recurring'] as bool? ?? false;
-    final recurrencePattern =
-        scheduledTaskData['recurrence_pattern'] as String? ?? 'none';
+    // Note: Scheduling data like datetime, recurrence pattern will be handled
+    // by the ScheduledTask API integration in the future
 
     // For now, we'll use the existing CreateTodoInColumn event
     // TODO: Integrate with actual ScheduledTask API to create both todo and schedule
@@ -647,9 +749,7 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
 
     // Show success feedback with scheduling details
     if (mounted) {
-      final scheduleText = isRecurring
-          ? 'recurring ${recurrencePattern.replaceAll('_', ' ')}'
-          : 'scheduled';
+      final scheduleText = 'scheduled';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -672,6 +772,181 @@ class _ProjectDetailViewState extends State<_ProjectDetailView> {
 
   void _refreshKanbanBoard() {
     context.read<KanbanBoardBloc>().add(RefreshKanbanBoard(widget.project.id));
+  }
+
+  Future<void> _onExportProject() async {
+    setState(() {
+      _isExporting = true;
+    });
+
+    try {
+      final projectRepository = getIt<ProjectRepository>();
+      final filePath = await projectRepository.exportProject(widget.project.id);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Project exported successfully!\nSaved to: ${filePath.split('/').last}',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Open Folder',
+              textColor: Colors.white,
+              onPressed: () {
+                // TODO: Open file location if needed
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Export failed: ${e.toString()}')),
+              ],
+            ),
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExporting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _onImportProject() async {
+    setState(() {
+      _isImporting = true;
+    });
+
+    try {
+      final projectRepository = getIt<ProjectRepository>();
+      final result = await projectRepository.importProject(widget.project.id);
+
+      if (mounted) {
+        final statistics = result.statistics;
+        final successMessage = statistics != null
+            ? 'Import completed!\n${statistics.successfulImports} tasks imported successfully'
+            : 'Import completed successfully!';
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text(successMessage)),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+
+        // Refresh the kanban board to show new tasks
+        _refreshKanbanBoard();
+
+        // Show detailed statistics if available
+        if (statistics != null &&
+            (result.errors?.isNotEmpty == true ||
+                result.warnings?.isNotEmpty == true)) {
+          _showImportDetailsDialog(result);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Import failed: ${e.toString()}')),
+              ],
+            ),
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isImporting = false;
+        });
+      }
+    }
+  }
+
+  void _showImportDetailsDialog(ImportProjectResponse result) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import Details'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (result.statistics != null) ...[
+                Text('Total Records: ${result.statistics!.totalRecords}'),
+                Text('Successful: ${result.statistics!.successfulImports}'),
+                Text('Failed: ${result.statistics!.failedImports}'),
+                Text('Skipped: ${result.statistics!.skippedRecords}'),
+                if (result.statistics!.duplicatesFound > 0)
+                  Text('Duplicates: ${result.statistics!.duplicatesFound}'),
+                const SizedBox(height: 16),
+              ],
+              if (result.warnings?.isNotEmpty == true) ...[
+                const Text(
+                  'Warnings:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                ...result.warnings!.map((warning) => Text('• $warning')),
+                const SizedBox(height: 8),
+              ],
+              if (result.errors?.isNotEmpty == true) ...[
+                const Text(
+                  'Errors:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                ...result.errors!.map((error) => Text('• $error')),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 }
 

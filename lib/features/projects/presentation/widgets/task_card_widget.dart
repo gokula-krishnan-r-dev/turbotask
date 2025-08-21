@@ -10,10 +10,13 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/inline_edit_text.dart';
 import '../../../todos/data/datasources/todo_actions_remote_datasource.dart';
 import '../../../todos/data/models/todo_action_request_models.dart';
+import '../../../todos/data/models/ai_task_models.dart';
+import '../../../todos/domain/usecases/todo_actions_usecase.dart';
 import '../../../todos/domain/entities/note.dart';
 import '../../../todos/domain/entities/todo.dart';
 import '../../../todos/presentation/bloc/note_bloc.dart';
 import '../../../todos/presentation/bloc/subtask_bloc.dart';
+import '../../../todos/presentation/bloc/ai_task_bloc.dart';
 import '../../../todos/presentation/widgets/note_editor_widget.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -40,16 +43,52 @@ class TaskCardWidget extends StatefulWidget {
   State<TaskCardWidget> createState() => _TaskCardWidgetState();
 }
 
-class _TaskCardWidgetState extends State<TaskCardWidget> {
+class _TaskCardWidgetState extends State<TaskCardWidget>
+    with SingleTickerProviderStateMixin {
   bool _isSubtasksExpanded = false;
   bool _isSubtasksVisible = false;
   late final TodoActionsRemoteDataSource _todoActionsDataSource;
+  late final TodoActionsUseCase _todoActionsUseCase;
   bool _isUpdatingTitle = false;
+  AITaskBloc? _aiTaskBloc;
+
+  // Animation for real-time update feedback
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
     _todoActionsDataSource = getIt<TodoActionsRemoteDataSource>();
+    _todoActionsUseCase = getIt<TodoActionsUseCase>();
+
+    // Initialize animation controller for real-time update feedback
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    // Initialize AI task bloc for AI enhancements
+    if (widget.task.aiEnhanced) {
+      _aiTaskBloc = getIt<AITaskBloc>();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _aiTaskBloc?.close();
+    super.dispose();
+  }
+
+  /// Trigger pulse animation for real-time update feedback
+  void triggerUpdateAnimation() {
+    _pulseController.forward().then((_) {
+      _pulseController.reverse();
+    });
   }
 
   Future<bool> _updateTaskTitle(String newTitle) async {
@@ -133,235 +172,371 @@ class _TaskCardWidgetState extends State<TaskCardWidget> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return BlocProvider(
-      create: (context) =>
-          getIt<SubtaskBloc>()..add(LoadSubtasks(widget.task.id)),
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 12),
-        elevation: 2,
-        shadowColor: Colors.black.withValues(alpha: 0.1),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.1)),
-        ),
-        child: InkWell(
-          onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header with title and actions
-                Row(
+    Widget cardWidget = AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _pulseAnimation.value,
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            elevation: 2,
+            shadowColor: Colors.black.withValues(alpha: 0.1),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: theme.dividerColor.withValues(alpha: 0.1),
+              ),
+            ),
+            child: InkWell(
+              onTap: widget.onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // AI emoji if available
-                    if (widget.task.taskEmoji != null &&
-                        widget.task.taskEmoji!.isNotEmpty) ...[
-                      Text(
-                        widget.task.taskEmoji!,
-                        style: const TextStyle(fontSize: 20),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-
-                    // Task title
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          InlineEditText(
-                            text: widget.task.taskName,
-                            onSave: _updateTaskTitle,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 2,
-                            isLoading: _isUpdatingTitle,
-                            placeholder: 'Enter task name...',
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Task name cannot be empty';
-                              }
-                              if (value.trim().length > 255) {
-                                return 'Task name is too long (max 255 characters)';
-                              }
-                              return null;
-                            },
-                          ),
-
-                          // AI-enhanced indicator
-                          if (widget.task.aiEnhanced) ...[
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.auto_awesome,
-                                  size: 12,
-                                  color: AppColors.mint,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'AI Enhanced',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: AppColors.mint,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-
-                    const Spacer(),
-
-                    // Action buttons
+                    // Header with title and actions
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // AI regeneration button for AI-enhanced tasks
-                        if (widget.task.aiEnhanced) ...[
-                          GestureDetector(
-                            onTap: () => _showAIOptions(context),
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: AppColors.mint.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Icon(
-                                Icons.psychology,
-                                size: 14,
-                                color: AppColors.mint,
-                              ),
-                            ),
+                        // AI emoji if available
+                        if (widget.task.taskEmoji != null &&
+                            widget.task.taskEmoji!.isNotEmpty) ...[
+                          Text(
+                            widget.task.taskEmoji!,
+                            style: const TextStyle(fontSize: 20),
                           ),
                           const SizedBox(width: 8),
                         ],
 
-                        // Subtask button
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _isSubtasksExpanded = !_isSubtasksExpanded;
-                              _isSubtasksVisible = !_isSubtasksVisible;
-                            });
-                            print('Subtask button pressed');
-                          },
-                          child: SvgPicture.asset(
-                            'assets/icons/subtask.svg',
-                            width: 20,
-                            height: 20,
+                        // Task title
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              InlineEditText(
+                                text: widget.task.taskName,
+                                onSave: _updateTaskTitle,
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 2,
+                                isLoading: _isUpdatingTitle,
+                                placeholder: 'Enter task name...',
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Task name cannot be empty';
+                                  }
+                                  if (value.trim().length > 255) {
+                                    return 'Task name is too long (max 255 characters)';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
                           ),
                         ),
 
-                        const SizedBox(width: 8),
+                        const Spacer(),
 
-                        // Notes button
-                        GestureDetector(
-                          onTap: () => _openNotesList(context),
-                          child: Icon(
-                            Icons.note_outlined,
-                            size: 16,
-                            color: AppColors.mint,
+                        // Action buttons
+                        Row(
+                          children: [
+                            // AI regeneration button for AI-enhanced tasks
+                            if (widget.task.aiEnhanced) ...[
+                              GestureDetector(
+                                onTap: () => _showAIOptions(context),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.mint.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Icon(
+                                    Icons.psychology,
+                                    size: 14,
+                                    color: AppColors.mint,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+
+                            // Subtask button
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _isSubtasksExpanded = !_isSubtasksExpanded;
+                                  _isSubtasksVisible = !_isSubtasksVisible;
+                                });
+                                print('Subtask button pressed');
+                              },
+                              child: SvgPicture.asset(
+                                'assets/icons/subtask.svg',
+                                width: 20,
+                                height: 20,
+                              ),
+                            ),
+
+                            const SizedBox(width: 8),
+
+                            // Notes button
+                            GestureDetector(
+                              onTap: () => _openNotesList(context),
+                              child: Icon(
+                                Icons.note_outlined,
+                                size: 16,
+                                color: AppColors.mint,
+                              ),
+                            ),
+
+                            const SizedBox(width: 8),
+
+                            // Delete button
+                            GestureDetector(
+                              onTap: () => _showDeleteConfirmation(context),
+                              child: Icon(
+                                Icons.delete_outline,
+                                size: 16,
+                                color: AppColors.error,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+
+                    // Description
+                    if (widget.task.taskDescription != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.task.taskDescription!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.textTheme.bodySmall?.color?.withValues(
+                            alpha: 0.7,
+                          ),
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+
+                    // Tags
+                    if (widget.task.tags.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: widget.task.tags.take(3).map((tag) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.mint.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              tag,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AppColors.mint,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+
+                    // // Subtasks
+                    if (_isSubtasksVisible) ...[
+                      const SizedBox(height: 12),
+                      SubtaskListWidget(
+                        isVisible: _isSubtasksVisible,
+                        todoId: widget.task.id,
+                        isExpanded: _isSubtasksExpanded,
+                        onExpandToggle: () {
+                          setState(() {
+                            _isSubtasksExpanded = !_isSubtasksExpanded;
+                          });
+                        },
+                      ),
+                    ],
+
+                    // Footer with assignee and due date
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Text(
+                          "+EST",
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.textTheme.bodySmall?.color?.withValues(
+                              alpha: 0.7,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          "0m",
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.textTheme.bodySmall?.color?.withValues(
+                              alpha: 0.7,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ],
                 ),
-
-                // Description
-                if (widget.task.taskDescription != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.task.taskDescription!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.textTheme.bodySmall?.color?.withValues(
-                        alpha: 0.7,
-                      ),
-                    ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-
-                // Tags
-                if (widget.task.tags.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: widget.task.tags.take(3).map((tag) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.mint.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          tag,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: AppColors.mint,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-
-                // // Subtasks
-                if (_isSubtasksVisible) ...[
-                  const SizedBox(height: 12),
-                  SubtaskListWidget(
-                    isVisible: _isSubtasksVisible,
-                    todoId: widget.task.id,
-                    isExpanded: _isSubtasksExpanded,
-                    onExpandToggle: () {
-                      setState(() {
-                        _isSubtasksExpanded = !_isSubtasksExpanded;
-                      });
-                    },
-                  ),
-                ],
-
-                // Footer with assignee and due date
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Text(
-                      "+EST",
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.textTheme.bodySmall?.color?.withValues(
-                          alpha: 0.7,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      "0m",
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.textTheme.bodySmall?.color?.withValues(
-                          alpha: 0.7,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
+        );
+      },
+    );
+
+    // Wrap with BlocProviders
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) =>
+              getIt<SubtaskBloc>()..add(LoadSubtasks(widget.task.id)),
         ),
-      ),
-    ); // Close BlocProvider
+        if (_aiTaskBloc != null)
+          BlocProvider<AITaskBloc>.value(value: _aiTaskBloc!),
+      ],
+      child: _aiTaskBloc != null
+          ? BlocListener<AITaskBloc, AITaskState>(
+              listener: (context, state) {
+                if (state is AITaskEnhancementsRegenerated) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: AppColors.mint,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'AI enhancements regenerated successfully!',
+                          ),
+                        ],
+                      ),
+                      backgroundColor: AppColors.mint,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  // Trigger refresh
+                  widget.onRefresh?.call();
+                } else if (state is AITaskDescriptionImproved) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: AppColors.mint,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Description improved successfully!'),
+                        ],
+                      ),
+                      backgroundColor: AppColors.mint,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  // Trigger refresh
+                  widget.onRefresh?.call();
+                } else if (state is AITaskSubtasksRefined) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: AppColors.mint,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Subtasks refined successfully!'),
+                        ],
+                      ),
+                      backgroundColor: AppColors.mint,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  // Trigger refresh
+                  widget.onRefresh?.call();
+                } else if (state is AITaskError) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          const Icon(
+                            Icons.error,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(state.message)),
+                        ],
+                      ),
+                      backgroundColor: AppColors.error,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                } else if (state is AITaskEnhancementCompleted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(
+                            Icons.auto_awesome,
+                            color: AppColors.mint,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text(
+                                  'AI Enhancement Complete!',
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                                Text(
+                                  'Task "${state.enhancement.taskName}" has been enhanced',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: AppColors.mint,
+                      behavior: SnackBarBehavior.floating,
+                      action: SnackBarAction(
+                        label: 'Refresh',
+                        textColor: Colors.white,
+                        onPressed: () => widget.onRefresh?.call(),
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: cardWidget,
+            )
+          : cardWidget,
+    );
   }
 
   void _openNotesList(BuildContext context) {
@@ -468,49 +643,96 @@ class _TaskCardWidgetState extends State<TaskCardWidget> {
   }
 
   void _regenerateAIEnhancements() {
-    // TODO: Implement AI regeneration
+    if (_aiTaskBloc == null) {
+      _aiTaskBloc = getIt<AITaskBloc>();
+    }
+
+    _aiTaskBloc!.add(RegenerateAIEnhancements(widget.task.id));
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.auto_awesome, color: AppColors.mint, size: 16),
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.mint),
+              ),
+            ),
             const SizedBox(width: 8),
             const Text('Regenerating AI enhancements...'),
           ],
         ),
-        backgroundColor: AppColors.mint.withOpacity(0.8),
+        backgroundColor: Colors.grey.shade800,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
   void _improveDescription() {
-    // TODO: Implement description improvement
+    if (_aiTaskBloc == null) {
+      _aiTaskBloc = getIt<AITaskBloc>();
+    }
+
+    final request = ImproveDescriptionRequest(
+      taskName: widget.task.taskName,
+      currentDescription: widget.task.taskDescription,
+      tags: widget.task.tags,
+    );
+
+    _aiTaskBloc!.add(ImproveTaskDescription(request));
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.edit, color: AppColors.mint, size: 16),
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.mint),
+              ),
+            ),
             const SizedBox(width: 8),
             const Text('Improving description with AI...'),
           ],
         ),
-        backgroundColor: AppColors.mint.withOpacity(0.8),
+        backgroundColor: Colors.grey.shade800,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
   void _refineSubtasks() {
-    // TODO: Implement subtask refinement
+    if (_aiTaskBloc == null) {
+      _aiTaskBloc = getIt<AITaskBloc>();
+    }
+
+    final request = RefineSubtasksRequest(todoId: widget.task.id);
+
+    _aiTaskBloc!.add(RefineTaskSubtasks(request));
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.list_alt, color: AppColors.mint, size: 16),
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.mint),
+              ),
+            ),
             const SizedBox(width: 8),
             const Text('Refining subtasks with AI...'),
           ],
         ),
-        backgroundColor: AppColors.mint.withOpacity(0.8),
+        backgroundColor: Colors.grey.shade800,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -529,6 +751,128 @@ class _TaskCardWidgetState extends State<TaskCardWidget> {
         backgroundColor: AppColors.mint.withOpacity(0.8),
       ),
     );
+  }
+
+  void _showDeleteConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.warning,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            const Text('Delete Task'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete "${widget.task.taskName}"?',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: AppColors.warning, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This will permanently delete the task and all its subtasks and notes.',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.warning),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _deleteTask();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteTask() async {
+    try {
+      await _todoActionsUseCase.deleteTodo(widget.task.id);
+
+      // Show success feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: AppColors.success, size: 16),
+                const SizedBox(width: 8),
+                const Text('Task deleted successfully'),
+              ],
+            ),
+            duration: const Duration(milliseconds: 2000),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.success,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+
+        // Trigger refresh to show updated data
+        if (widget.onRefresh != null) {
+          widget.onRefresh!();
+        }
+      }
+    } catch (e) {
+      // Show error feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Failed to delete task: ${e.toString()}')),
+              ],
+            ),
+            duration: const Duration(milliseconds: 3000),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.error,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    }
   }
 }
 

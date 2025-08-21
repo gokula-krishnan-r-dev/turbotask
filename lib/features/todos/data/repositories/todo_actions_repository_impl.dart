@@ -50,4 +50,9 @@ class TodoActionsRepositoryImpl implements TodoActionsRepository {
   Future<bool> getActiveBreakStatus(String todoId) async {
     return await _remoteDataSource.getActiveBreakStatus(todoId);
   }
+
+  @override
+  Future<void> deleteTodo(String todoId) async {
+    return await _remoteDataSource.deleteTodo(todoId);
+  }
 }

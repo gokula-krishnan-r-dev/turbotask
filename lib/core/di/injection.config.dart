@@ -44,6 +44,8 @@ import 'package:turbotask/features/projects/data/datasources/project_remote_data
     as _i247;
 import 'package:turbotask/features/projects/data/repositories/project_repository_impl.dart'
     as _i565;
+import 'package:turbotask/features/projects/data/services/project_import_export_service.dart'
+    as _i224;
 import 'package:turbotask/features/projects/domain/repositories/project_repository.dart'
     as _i680;
 import 'package:turbotask/features/projects/domain/usecases/create_project_usecase.dart'
@@ -164,6 +166,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i1022.NoteRemoteDataSource>(
       () => _i1022.NoteRemoteDataSourceImpl(gh<_i79.ApiService>()),
     );
+    gh.singleton<_i224.ProjectImportExportService>(
+      () => _i224.ProjectImportExportService(gh<_i79.ApiService>()),
+    );
     gh.singleton<_i247.ProjectRemoteDataSource>(
       () => _i247.ProjectRemoteDataSourceImpl(gh<_i79.ApiService>()),
     );
@@ -194,9 +199,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i293.AuthManager>(),
       ),
     );
-    gh.singleton<_i680.ProjectRepository>(
-      () => _i565.ProjectRepositoryImpl(gh<_i247.ProjectRemoteDataSource>()),
-    );
     gh.factory<_i86.InitiateOtpUseCase>(
       () => _i86.InitiateOtpUseCase(gh<_i766.AuthRepository>()),
     );
@@ -211,6 +213,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i460.VerifyOtpUseCase>(
       () => _i460.VerifyOtpUseCase(gh<_i766.AuthRepository>()),
+    );
+    gh.singleton<_i680.ProjectRepository>(
+      () => _i565.ProjectRepositoryImpl(
+        gh<_i247.ProjectRemoteDataSource>(),
+        gh<_i224.ProjectImportExportService>(),
+      ),
     );
     gh.lazySingleton<_i351.NoteRepository>(
       () => _i972.NoteRepositoryImpl(gh<_i1022.NoteRemoteDataSource>()),

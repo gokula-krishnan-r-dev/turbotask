@@ -16,6 +16,13 @@ import '../../features/breaks/domain/usecases/stop_break_usecase.dart';
 import '../../features/breaks/domain/usecases/get_active_break_usecase.dart';
 import '../../features/breaks/domain/usecases/get_break_stats_usecase.dart';
 import '../../features/breaks/presentation/bloc/break_bloc.dart';
+import '../../features/todos/data/datasources/ai_task_remote_datasource.dart';
+import '../../features/todos/data/repositories/ai_task_repository_impl.dart';
+import '../../features/todos/domain/repositories/ai_task_repository.dart';
+import '../../features/todos/domain/usecases/ai_task_usecase.dart';
+import '../../features/todos/presentation/bloc/ai_task_bloc.dart';
+import '../services/websocket_service.dart';
+import '../services/realtime_kanban_service.dart';
 
 /// Global service locator instance
 final getIt = GetIt.instance;
@@ -31,6 +38,9 @@ Future<void> configureDependencies() async {
 
   // Register break-related dependencies
   _registerBreakDependencies();
+
+  // Register AI-related dependencies
+  _registerAIDependencies();
 
   // Note: TodoActions dependencies are registered automatically via @injectable annotations
 
@@ -86,6 +96,39 @@ void _registerBreakDependencies() {
       getIt<GetActiveBreakUseCase>(),
       getIt<GetBreakStatsUseCase>(),
     ),
+  );
+}
+
+/// Register AI-related dependencies manually
+void _registerAIDependencies() {
+  // WebSocket service (singleton)
+  getIt.registerSingleton<WebSocketService>(
+    WebSocketService(getIt<AuthManager>()),
+  );
+
+  // Realtime Kanban service (singleton)
+  getIt.registerSingleton<RealtimeKanbanService>(
+    RealtimeKanbanService(getIt<WebSocketService>()),
+  );
+
+  // Data sources
+  getIt.registerLazySingleton<AITaskRemoteDataSource>(
+    () => AITaskRemoteDataSourceImpl(getIt<ApiService>()),
+  );
+
+  // Repositories
+  getIt.registerLazySingleton<AITaskRepository>(
+    () => AITaskRepositoryImpl(getIt<AITaskRemoteDataSource>()),
+  );
+
+  // Use cases
+  getIt.registerLazySingleton<AITaskUseCase>(
+    () => AITaskUseCase(getIt<AITaskRepository>()),
+  );
+
+  // Bloc
+  getIt.registerFactory<AITaskBloc>(
+    () => AITaskBloc(getIt<AITaskUseCase>(), getIt<WebSocketService>()),
   );
 }
 

@@ -10,4 +10,5 @@ abstract class TodoActionsRepository {
   Future<void> pauseTodo(String todoId);
   Future<Todo> skipTodo(String todoId);
   Future<bool> getActiveBreakStatus(String todoId);
+  Future<void> deleteTodo(String todoId);
 }

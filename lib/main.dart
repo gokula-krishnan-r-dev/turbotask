@@ -10,6 +10,7 @@ import 'core/auth/auth_bloc.dart';
 import 'core/auth/auth_state.dart';
 import 'core/auth/auth_state_event.dart';
 import 'core/di/injection.dart';
+import 'core/services/websocket_service.dart';
 import 'core/theme/app_themes.dart';
 import 'core/theme/theme_manager.dart';
 import 'features/auth/presentation/pages/login_page.dart';

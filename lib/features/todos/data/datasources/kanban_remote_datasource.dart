@@ -45,7 +45,7 @@ class KanbanRemoteDataSourceImpl implements KanbanRemoteDataSource {
   Future<Todo> createTodo(CreateTodoRequest request) async {
     try {
       final response = await _apiService.post(
-        '/api/v1/ai/tasks',
+        '/api/v1/ai/tasks/optimized',
         data: request.toJson(),
       );
 

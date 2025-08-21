@@ -505,9 +505,49 @@ class _SubtaskItemWidgetState extends State<SubtaskItemWidget> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Subtask'),
-        content: Text(
-          'Are you sure you want to delete "${widget.subtask.name}"?',
+        title: Row(
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.warning,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            const Text('Delete Subtask'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete "${widget.subtask.name}"?',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: AppColors.warning, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This action cannot be undone.',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.warning),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -516,8 +556,8 @@ class _SubtaskItemWidgetState extends State<SubtaskItemWidget> {
           ),
           ElevatedButton(
             onPressed: () {
-              context.read<SubtaskBloc>().add(DeleteSubtask(widget.subtask.id));
               Navigator.of(dialogContext).pop();
+              _deleteSubtask(context);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
@@ -528,5 +568,62 @@ class _SubtaskItemWidgetState extends State<SubtaskItemWidget> {
         ],
       ),
     );
+  }
+
+  Future<void> _deleteSubtask(BuildContext context) async {
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text('Deleting subtask...'),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.info,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+
+      // Delete via bloc
+      context.read<SubtaskBloc>().add(DeleteSubtask(widget.subtask.id));
+
+      // Success will be handled by the bloc
+    } catch (e) {
+      // Show error feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Failed to delete subtask: ${e.toString()}'),
+                ),
+              ],
+            ),
+            duration: const Duration(milliseconds: 3000),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.error,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
+    }
   }
 }

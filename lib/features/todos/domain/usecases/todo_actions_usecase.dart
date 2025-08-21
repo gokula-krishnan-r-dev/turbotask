@@ -54,4 +54,8 @@ class TodoActionsUseCase {
   Future<bool> getActiveBreakStatus(String todoId) async {
     return await _repository.getActiveBreakStatus(todoId);
   }
+
+  Future<void> deleteTodo(String todoId) async {
+    return await _repository.deleteTodo(todoId);
+  }
 }

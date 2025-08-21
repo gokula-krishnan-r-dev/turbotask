@@ -6,13 +6,19 @@ import '../../domain/entities/project_stats.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../datasources/project_remote_datasource.dart';
 import '../models/create_project_request_model.dart';
+import '../models/export_import_models.dart';
+import '../services/project_import_export_service.dart';
 
 /// Implementation of ProjectRepository using remote data source.
 @Singleton(as: ProjectRepository)
 class ProjectRepositoryImpl implements ProjectRepository {
-  const ProjectRepositoryImpl(this._remoteDataSource);
+  const ProjectRepositoryImpl(
+    this._remoteDataSource,
+    this._importExportService,
+  );
 
   final ProjectRemoteDataSource _remoteDataSource;
+  final ProjectImportExportService _importExportService;
 
   @override
   Future<Project> createProject(CreateProjectRequest request) async {
@@ -123,8 +129,16 @@ class ProjectRepositoryImpl implements ProjectRepository {
 
   @override
   Future<void> deleteProject(String projectId) async {
-    // Note: Delete endpoint not provided in API collection
-    // This would need to be implemented when the API supports it
-    throw UnimplementedError('Delete project not yet implemented in API');
+    return await _remoteDataSource.deleteProject(projectId);
+  }
+
+  @override
+  Future<String> exportProject(String projectId) async {
+    return await _importExportService.exportProject(projectId);
+  }
+
+  @override
+  Future<ImportProjectResponse> importProject(String projectId) async {
+    return await _importExportService.importProject(projectId);
   }
 }

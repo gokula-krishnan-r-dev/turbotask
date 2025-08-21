@@ -1,6 +1,7 @@
 import '../entities/create_project_request.dart';
 import '../entities/project.dart';
 import '../entities/project_stats.dart';
+import '../../data/models/export_import_models.dart';
 
 /// Abstract repository for project operations.
 /// Defines the contract for project data access.
@@ -44,4 +45,10 @@ abstract class ProjectRepository {
 
   /// Delete project
   Future<void> deleteProject(String projectId);
+
+  /// Export project data as ZIP file
+  Future<String> exportProject(String projectId);
+
+  /// Import project data from ZIP file
+  Future<ImportProjectResponse> importProject(String projectId);
 }

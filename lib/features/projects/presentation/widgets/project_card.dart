@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/responsive_utils.dart';
+import '../../../todos/presentation/widgets/ai_task_creation_widget.dart';
 import '../../domain/entities/project.dart';
 
 /// Enhanced project card widget with modern UI and animations
@@ -11,11 +12,13 @@ class ProjectCard extends StatefulWidget {
     required this.project,
     required this.onTap,
     required this.onFavoriteToggle,
+    this.onTaskCreated,
   });
 
   final Project project;
   final VoidCallback onTap;
   final VoidCallback onFavoriteToggle;
+  final VoidCallback? onTaskCreated;
 
   @override
   State<ProjectCard> createState() => _ProjectCardState();
@@ -24,9 +27,7 @@ class ProjectCard extends StatefulWidget {
 class _ProjectCardState extends State<ProjectCard>
     with TickerProviderStateMixin {
   late AnimationController _scaleController;
-  late AnimationController _favoriteController;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _favoriteAnimation;
   bool _isHovered = false;
 
   @override
@@ -38,32 +39,45 @@ class _ProjectCardState extends State<ProjectCard>
       vsync: this,
     );
 
-    _favoriteController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-
     _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
       CurvedAnimation(parent: _scaleController, curve: Curves.easeOutCubic),
-    );
-
-    _favoriteAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
-      CurvedAnimation(parent: _favoriteController, curve: Curves.elasticOut),
     );
   }
 
   @override
   void dispose() {
     _scaleController.dispose();
-    _favoriteController.dispose();
     super.dispose();
   }
 
-  void _onFavoriteToggle() {
-    _favoriteController.forward().then((_) {
-      _favoriteController.reverse();
-    });
-    widget.onFavoriteToggle();
+  void _showAITaskCreation() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.8,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            child: AITaskCreationWidget(
+              projectId: widget.project.id,
+              onTaskCreated: (response) {
+                Navigator.of(context).pop();
+                widget.onTaskCreated?.call();
+              },
+              onClose: () => Navigator.of(context).pop(),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -209,6 +223,45 @@ class _ProjectCardState extends State<ProjectCard>
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
               fontSize: isDesktop ? 11 : 10,
+            ),
+          ),
+        ),
+
+        const Spacer(),
+
+        // AI Task Creation Button
+        GestureDetector(
+          onTap: _showAITaskCreation,
+          child: Container(
+            padding: EdgeInsets.all(isDesktop ? 8 : 6),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.mint.withOpacity(0.15),
+                  AppColors.teal.withOpacity(0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.mint.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  size: isDesktop ? 16 : 14,
+                  color: AppColors.mint,
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.add,
+                  size: isDesktop ? 16 : 14,
+                  color: AppColors.mint,
+                ),
+              ],
             ),
           ),
         ),

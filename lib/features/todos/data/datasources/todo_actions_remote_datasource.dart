@@ -14,6 +14,7 @@ abstract class TodoActionsRemoteDataSource {
   Future<Todo> skipTodo(String todoId);
   Future<bool> getActiveBreakStatus(String todoId);
   Future<Todo> updateTodo(String todoId, UpdateTodoRequest request);
+  Future<void> deleteTodo(String todoId);
 }
 
 @Injectable(as: TodoActionsRemoteDataSource)
@@ -185,6 +186,22 @@ class TodoActionsRemoteDataSourceImpl implements TodoActionsRemoteDataSource {
         throw Exception('Todo not found');
       }
       throw Exception('Network error while updating todo: $e');
+    }
+  }
+
+  @override
+  Future<void> deleteTodo(String todoId) async {
+    try {
+      final response = await _apiService.delete('/api/v1/todo/todos/$todoId');
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Failed to delete todo: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e.toString().contains('404') || e.toString().contains('not found')) {
+        throw Exception('Todo not found');
+      }
+      throw Exception('Network error while deleting todo: $e');
     }
   }
 }

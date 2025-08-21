@@ -1,8 +1,10 @@
 import 'package:injectable/injectable.dart';
+import 'package:dio/dio.dart';
 
 import '../../../../core/network/api_service.dart';
 import '../models/create_project_request_model.dart';
 import '../models/project_response_model.dart';
+import '../models/export_import_models.dart';
 
 /// Abstract interface for project remote data source.
 abstract class ProjectRemoteDataSource {
@@ -31,6 +33,14 @@ abstract class ProjectRemoteDataSource {
   Future<ProjectListResponseModel> getProjectsByCategory(String category);
   Future<void> archiveProject(String projectId);
   Future<void> restoreProject(String projectId);
+  Future<void> deleteProject(String projectId);
+
+  // Export/Import methods
+  Future<Response<List<int>>> exportProject(String projectId);
+  Future<ImportProjectResponse> importProject(
+    String projectId,
+    FormData formData,
+  );
 }
 
 /// Implementation of project remote data source using ApiService.
@@ -205,5 +215,50 @@ class ProjectRemoteDataSourceImpl implements ProjectRemoteDataSource {
   @override
   Future<void> restoreProject(String projectId) async {
     await _apiService.post('/api/v1/projects/$projectId/restore');
+  }
+
+  @override
+  Future<void> deleteProject(String projectId) async {
+    try {
+      final response = await _apiService.delete(
+        '/api/v1/todo/projects/$projectId',
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Failed to delete project: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e.toString().contains('404') || e.toString().contains('not found')) {
+        throw Exception('Project not found');
+      }
+      throw Exception('Network error while deleting project: $e');
+    }
+  }
+
+  @override
+  Future<Response<List<int>>> exportProject(String projectId) async {
+    return await _apiService.get(
+      '/api/v1/todo/projects/$projectId/export',
+      options: Options(
+        responseType: ResponseType.bytes,
+        headers: {'Accept': 'application/zip'},
+      ),
+    );
+  }
+
+  @override
+  Future<ImportProjectResponse> importProject(
+    String projectId,
+    FormData formData,
+  ) async {
+    final response = await _apiService.post(
+      '/api/v1/todo/projects/$projectId/import',
+      data: formData,
+      options: Options(headers: {'Content-Type': 'multipart/form-data'}),
+    );
+
+    return ImportProjectResponse.fromJson(
+      response.data as Map<String, dynamic>,
+    );
   }
 }
